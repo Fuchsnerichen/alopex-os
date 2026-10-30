@@ -311,6 +311,14 @@ test('exobiology via Spansh', async () => {
     assert.match(await win.$eval('#exobio-results', e => e.innerText), /Synuefe AB 1 a/i);
 });
 
+// Outfitting: type into the part search and click the suggestion
+async function pickPart(query, name) {
+    await win.fill('#outfit-search', query);
+    await win.click(`#outfit-suggest [data-part="${name}"]`);
+    assert.equal(await win.inputValue('#outfit-search'), name);
+}
+const variantLabels = () => win.$$eval('#outfit-variant option', options => options.map(o => o.textContent));
+
 test('outfitting: the nearest station that sells every part on the list', async () => {
     await win.click('[data-tab="outfit"]');
     assert.equal(await win.inputValue('#outfit-ship'), 'fleet:7', 'starts with the active ship');
@@ -319,22 +327,49 @@ test('outfitting: the nearest station that sells every part on the list', async 
     // a ship type without journal data offers its own armour and has no fitted modules
     await win.selectOption('#outfit-ship', 'type:cobramkiii');
     assert.match(await win.textContent('#outfit-ship-info'), /Landing pad S/);
-    await win.selectOption('#outfit-module', 'Military Grade Composite');
+    await pickPart('mil grade', 'Military Grade Composite');
     assert.equal(await win.inputValue('#outfit-variant'), 'cobramkiii_armour_grade3');
+    // only what fits the Cobra: hardpoints 2, 2, 1, 1 and a size 4 FSD
+    await pickPart('pulse', 'Pulse Laser');
+    const lasers = await variantLabels();
+    assert.ok(lasers.some(l => /Small/.test(l)) && lasers.some(l => /Medium/.test(l)));
+    assert.ok(!lasers.some(l => /Large|Huge/.test(l)), lasers.join());
+    await pickPart('fsd', 'Frame Shift Drive');
+    assert.equal(Math.max(...(await variantLabels()).map(l => parseInt(l, 10))), 4);
+    assert.equal(await win.inputValue('#outfit-variant'), 'int_hyperdrive_size4_class5', 'without a fitted FSD: the largest that fits, A-rated');
+    // a ship without slot data shows every size and says so
+    await win.selectOption('#outfit-ship', 'type:mediumtransport01');
+    assert.match(await win.textContent('#outfit-ship-info'), /slot sizes unknown/);
+    assert.equal(Math.max(...(await variantLabels()).map(l => parseInt(l, 10))), 8);
     await win.selectOption('#outfit-ship', 'fleet:7');
 
-    // fleet ship: the fitted FSD is shown and the A-rated module of that size is suggested
-    await win.selectOption('#outfit-module', 'Frame Shift Drive');
+    // search by abbreviation: the FSD comes first, before the Guardian FSD Booster
+    await win.fill('#outfit-search', 'fsd');
+    const suggestions = await win.$$eval('#outfit-suggest [data-part]', items => items.map(i => i.dataset.part));
+    assert.equal(suggestions[0], 'Frame Shift Drive');
+    assert.ok(suggestions.includes('Guardian FSD Booster'));
+    await win.keyboard.press('Enter');
+    // fleet ship: the fitted FSD is shown, the A-rated module of that size is suggested, nothing above the size 6 slot
+    assert.equal(await win.inputValue('#outfit-search'), 'Frame Shift Drive');
     assert.match(await win.textContent('#outfit-fitted'), /Fitted on Alopex: 6C/);
     assert.equal(await win.inputValue('#outfit-variant'), 'int_hyperdrive_size6_class5');
+    assert.equal(Math.max(...(await variantLabels()).map(l => parseInt(l, 10))), 6);
     await win.click('[data-action="addOutfitPart"]');
-    await win.selectOption('#outfit-module', 'Fuel Scoop');
-    await win.selectOption('#outfit-variant', 'int_fuelscoop_size6_class5');
+    // size and rating typed with the part
+    await win.fill('#outfit-search', '6a scoop');
+    await win.keyboard.press('Enter');
+    assert.equal(await win.inputValue('#outfit-search'), 'Fuel Scoop');
+    assert.equal(await win.inputValue('#outfit-variant'), 'int_fuelscoop_size6_class5');
     await win.click('[data-action="addOutfitPart"]');
-    await win.selectOption('#outfit-module', 'Military Grade Composite');
+    await pickPart('mil grade', 'Military Grade Composite');
     assert.equal(await win.inputValue('#outfit-variant'), 'anaconda_armour_grade3');
     await win.click('[data-action="addOutfitPart"]');
     assert.match(await win.$eval('#outfit-parts', e => e.innerText), /6A Frame Shift Drive[\s\S]*6A Fuel Scoop[\s\S]*Military Grade Composite \(Anaconda\)/i);
+    // parts that do not fit another ship are marked on the list
+    await win.selectOption('#outfit-ship', 'type:cobramkiii');
+    assert.equal(await win.$$eval('#outfit-parts .no-fit', chips => chips.length), 3);
+    await win.selectOption('#outfit-ship', 'fleet:7');
+    assert.equal(await win.$$eval('#outfit-parts .no-fit', chips => chips.length), 0);
 
     await win.click('[data-action="searchOutfit"]');
     await win.waitForSelector('#outfit-results .accordion-item, #outfit-results .info-box, #outfit-results .warning-box');
@@ -365,7 +400,7 @@ test('outfitting: the nearest station that sells every part on the list', async 
     await win.check('#include-planetary');
 
     // a part no station sells: the closest partial matches, with what is missing
-    await win.selectOption('#outfit-module', 'Guardian FSD Booster');
+    await pickPart('guardian fsd', 'Guardian FSD Booster');
     await win.selectOption('#outfit-variant', 'int_guardianfsdbooster_size5');
     await win.click('[data-action="addOutfitPart"]');
     await win.click('[data-action="searchOutfit"]');
@@ -457,7 +492,7 @@ test('ships keep their last loadout when their journal files are older than the 
     await win.click('[data-tab="outfit"]');
     await win.selectOption('#outfit-ship', 'fleet:9');
     assert.match(await win.textContent('#outfit-ship-info'), /Landing pad S · fitted modules from the journal \(\d+ d ago\)/);
-    await win.selectOption('#outfit-module', 'Frame Shift Drive');
+    await pickPart('frame shift', 'Frame Shift Drive');
     assert.match(await win.textContent('#outfit-fitted'), /Fitted on Digger: 4D Frame Shift Drive/);
 
     const saved = JSON.parse(await win.evaluate(() => localStorage.getItem('alopex_fleet')));

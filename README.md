@@ -37,7 +37,9 @@ mit einem kostenpflichtigen Zertifikat signiert ist. *Weitere Informationen* →
 - **Stationen:** Unter *Stations* lassen sich Fleet Carrier und Planetenstationen in allen Stationssuchen
   ein- oder ausblenden. Bei jeder Station zeigt die App, ob sie auf einem Planeten liegt oder im All.
 - **Outfitting:** Schiff wählen (aus der Flotte oder einen Schiffstyp), die gewünschten Teile auf die Liste
-  setzen, suchen. Die App zeigt die nächsten Stationen, die *alle* Teile verkaufen, mit Preisen. Bei Schiffen
+  setzen, suchen. Teile findest du per Texteingabe, auch mit Kürzeln wie *FSD*, *SCB*, *HRP* oder gleich mit
+  Größe (*6A scoop*). Angeboten werden nur Größen, die in einen Steckplatz des gewählten Schiffs passen; Teile
+  auf der Liste, die nicht passen, sind rot markiert. Die App zeigt die nächsten Stationen, die *alle* Teile verkaufen, mit Preisen. Bei Schiffen
   aus der Flotte steht dabei, was gerade eingebaut ist.
   Mit *Shipyard* muss die Station zusätzlich den gewählten Schiffstyp verkaufen, praktisch zum Kaufen und
   Ausrüsten an einem Ort. Ohne Teile auf der Liste sucht die App nur das Schiff.
@@ -107,6 +109,8 @@ Unter Windows ist das der einfachste Weg. Unter Linux braucht der Installer zus�
 | `lib/` | Ardent, Spansh, Warennamen, Journal, Updates und der gemeinsame Netzwerk-Helfer |
 | `app/` | Die Oberfläche (HTML, CSS, JavaScript, Schrift Rajdhani unter SIL OFL 1.1) |
 | `app/outfitting-data.js` | Modulliste für Outfitting, erzeugt aus EDCD FDevIDs `outfitting.csv` |
+| `app/ship-slots.js` | Steckplatz-Größen jedes Schiffs, erzeugt aus EDCD coriolis-data |
+| `scripts/build-ship-slots.mjs` | Erzeugt `app/ship-slots.js` neu: `node scripts/build-ship-slots.mjs <Pfad>/coriolis-data <Pfad>/FDevIDs` |
 | `scripts/build-outfitting-data.mjs` | Erzeugt `app/outfitting-data.js` neu: `node scripts/build-outfitting-data.mjs <Pfad>/outfitting.csv` (bei neuen Schiffen oder Modulen) |
 | `test/` | Unit-Tests (`lib.test.mjs`) und End-to-End-Tests der echten App (`app.test.mjs`) |
 | `build/icon.*` | App-Icon, der Fuchskopf aus dem Intro: `icon.svg` (Zeichnung), `icon.png` (512 px), `icon.ico` (16–256 px, kleine Größen vereinfacht). Neu erzeugen mit `node scripts/build-icons.mjs` |

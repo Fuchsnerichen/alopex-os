@@ -248,8 +248,12 @@
                 <div id="outfit-ship-info" class="field-note"></div>
             </div>
             <div class="input-group">
-                <label for="outfit-module">PART</label>
-                <select id="outfit-module"></select>
+                <label for="outfit-search">PART</label>
+                <div class="combo">
+                    <input type="text" id="outfit-search" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="outfit-suggest"
+                        autocomplete="off" spellcheck="false" placeholder="Search: FSD, fuel scoop, 6A scoop …">
+                    <ul id="outfit-suggest" class="combo-list" role="listbox" aria-label="Matching parts" hidden></ul>
+                </div>
                 <div id="outfit-fitted" class="field-note"></div>
             </div>
             <div class="input-group">
@@ -301,6 +305,7 @@
     <div id="toast-container" role="status" aria-live="polite"></div>
 
     <script src="outfitting-data.js"></script>
+    <script src="ship-slots.js"></script>
     <script src="renderer.js"></script>
 </body>
 </html>

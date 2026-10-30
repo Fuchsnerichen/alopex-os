@@ -16,6 +16,8 @@ Third-party material in this repository keeps its own license:
   see app/fonts/OFL.txt.
 - Module data in app/outfitting-data.js: generated from EDCD FDevIDs
   (https://github.com/EDCD/FDevIDs).
+- Ship slot sizes in app/ship-slots.js: generated from EDCD coriolis-data
+  (https://github.com/EDCD/coriolis-data); game data (c) Frontier Developments plc.
 
 Elite Dangerous is a trademark of Frontier Developments plc. ALOPEX OS is a fan
 project and is not affiliated with or endorsed by Frontier Developments.
