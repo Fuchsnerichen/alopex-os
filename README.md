@@ -103,6 +103,8 @@ Unter Windows ist das der einfachste Weg. Unter Linux braucht der Installer zus√
 3. Aus `dist/` anh√§ngen: `ALOPEX-OS-<version>-Setup.exe`, `ALOPEX-OS-<version>-Setup.exe.blockmap`,
    `latest.yml` und `ALOPEX-OS-<version>-portable.exe`.
 4. *Publish release* (kein Entwurf, keine Vorabversion). Ab dann finden die installierten Apps das Update.
+   GitHub meldet eine neue Version oft erst nach einigen Minuten; bis dahin zeigt *Check now* noch
+   *Up to date*. Fehlt eine Datei im Release, steht unter *Updates* eine Fehlermeldung, die sagt, welche.
 
 ## Aufbau
 

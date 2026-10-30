@@ -202,15 +202,31 @@ test('Updates: auto-update downloads by itself; the portable app opens the relea
     assert.deepEqual(opened, [RELEASES_URL]);
 });
 
-test('Updates: errors in plain words; no release yet counts as up to date', async () => {
-    const failing = message => {
+test('Updates: errors in plain words; only "no release at all" counts as up to date', async () => {
+    const failing = (message, extra = {}) => {
         const updater = createFakeUpdater('9.9.9');
-        updater.checkForUpdates = async () => { throw new Error(message); };
+        updater.checkForUpdates = async () => { throw Object.assign(new Error(message), extra); };
         return createUpdates({ updater, version: '1.0.10', settings: memorySettings(), openExternal: () => {} });
     };
-    assert.equal((await failing('No published versions on GitHub').check()).status, 'none');
-    const offline = await failing('net::ERR_INTERNET_DISCONNECTED').check();
-    assert.deepEqual([offline.status, offline.error], ['error', 'update server not reachable – are you online?']);
+    const shown = async (message, extra) => {
+        const state = await failing(message, extra).check();
+        return [state.status, state.error];
+    };
+    assert.deepEqual(await shown('No published versions on GitHub', { code: 'ERR_UPDATER_NO_PUBLISHED_VERSIONS' }), ['none', '']);
+    assert.deepEqual(await shown('net::ERR_INTERNET_DISCONNECTED'), ['error', 'update server not reachable – are you online?']);
+    // a release without latest.yml used to show as "Up to date"
+    assert.deepEqual(await shown('Cannot find latest.yml in the latest release artifacts (https://github.com/x): HttpError: 404 Not Found',
+        { code: 'ERR_UPDATER_CHANNEL_FILE_NOT_FOUND' }), ['error', 'the newest release is missing latest.yml']);
+    assert.deepEqual(await shown('Unable to find latest version on GitHub (https://github.com/x): HttpError: 429 Too Many Requests',
+        { code: 'ERR_UPDATER_LATEST_VERSION_NOT_FOUND' }), ['error', 'GitHub is limiting requests – please try again later']);
+    assert.deepEqual(await shown('Unable to find latest version on GitHub (https://github.com/x): HttpError: 500',
+        { code: 'ERR_UPDATER_LATEST_VERSION_NOT_FOUND' }), ['error', 'no release found on GitHub']);
+    assert.deepEqual(await shown('Cannot parse update info from latest.yml', { code: 'ERR_UPDATER_INVALID_UPDATE_INFO' }),
+        ['error', 'latest.yml in the newest release is damaged']);
+    assert.deepEqual(await shown('404 Not Found\nHeaders: {}', { statusCode: 404 }), ['error', 'the newest release is missing the setup file']);
+    assert.deepEqual(await shown('sha512 checksum mismatch, expected a, got b', { code: 'ERR_CHECKSUM_MISMATCH' }),
+        ['error', 'download damaged, please try again']);
+    assert.deepEqual(await shown('something odd\nmore lines'), ['error', 'something odd']);
     const none = createUpdates({ updater: null, version: '1.0.10', settings: memorySettings(), openExternal: () => {} });
     assert.equal((await none.check()).status, 'disabled');
 
