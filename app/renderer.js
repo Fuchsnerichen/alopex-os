@@ -604,7 +604,37 @@ document.addEventListener('mousedown', e => {
 $('theme-selector').addEventListener('change', () => changeTheme());
 $('ship-preset').addEventListener('change', () => { applyPreset(); playTone('success'); });
 $('outfit-ship').addEventListener('change', () => { outfitShipChosen = true; refreshOutfitModules(); });
-$('outfit-module').addEventListener('change', () => refreshOutfitVariants());
+$('outfit-search').addEventListener('input', () => {
+    if ($('outfit-search').value !== outfitModule) {
+        outfitModule = null;
+        refreshOutfitVariants();
+    }
+    suggestIndex = $('outfit-search').value.trim() ? 0 : -1;
+    renderSuggestions();
+});
+$('outfit-search').addEventListener('focus', () => renderSuggestions());
+$('outfit-search').addEventListener('blur', () => closeSuggestions());
+$('outfit-search').addEventListener('keydown', e => {
+    const list = $('outfit-suggest');
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (list.hidden) renderSuggestions();
+        suggestIndex = Math.max(0, Math.min(suggestHits.length - 1, suggestIndex + (e.key === 'ArrowDown' ? 1 : -1)));
+        renderSuggestions();
+    } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const hit = suggestHits[Math.max(0, suggestIndex)];
+        if (hit) choosePart(hit.name, suggestVariant);
+    } else if (e.key === 'Escape') {
+        closeSuggestions();
+    }
+});
+// mousedown, not click: picking a part must not blur (and close) the search field first
+$('outfit-suggest').addEventListener('mousedown', e => {
+    e.preventDefault();
+    const option = e.target.closest('[data-part]');
+    if (option) choosePart(option.dataset.part, suggestVariant);
+});
 
 document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && $('ship-manager-modal').classList.contains('show')) closeShipManager();
@@ -1363,45 +1393,172 @@ function refreshOutfitShips() {
     refreshOutfitModules();
 }
 
-function refreshOutfitModules() {
-    const { type, ship } = outfitShip();
-    const select = $('outfit-module');
-    const previous = select.value;
-    select.innerHTML = MODULE_GROUPS.map(([label, inGroup]) => {
-        const names = [...new Set(MODULES.filter(m => inGroup(m) && (!m.armour || isArmourFor(m, type))).map(m => m.name))].sort();
-        return names.length ? `<optgroup label="${label}">${names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('')}</optgroup>` : '';
-    }).join('');
-    if ([...select.options].some(o => o.value === previous)) select.value = previous;
-    const known = !ship ? '' : !ship.modules ? ' · board this ship once to read its modules'
-        : ` · fitted modules from the journal${ship.loadoutAt ? ` (${timeAgo(ship.loadoutAt)})` : ''}`;
-    $('outfit-ship-info').textContent = `Landing pad ${PAD_LABEL[shipPad(type)] || '?'}${known}`;
-    refreshOutfitVariants();
+// Core slot of each core part type: index into SHIP_SLOTS[...].core (ship-slots.js)
+const CORE_SLOT = {
+    'Power Plant': 0, 'Guardian Hybrid Power Plant': 0,
+    'Thrusters': 1, 'Enhanced Performance Thrusters': 1, 'Mk II Agile Boost Thrusters': 1, 'Mk II Gravity Optimised Thrusters': 1,
+    'Frame Shift Drive': 2, 'Frame Shift Drive (SCO)': 2, 'Mk II Supercharge Optimised Frame Shift Drive (SCO)': 2,
+    'Life Support': 3, 'Power Distributor': 4, 'Guardian Hybrid Power Distributor': 4, 'Sensors': 5, 'Fuel Tank': 6
+};
+// Words commanders search for besides the part names
+const PART_ALIASES = {
+    'Frame Shift Drive': 'fsd', 'Frame Shift Drive (SCO)': 'fsd sco overcharge', 'Mk II Supercharge Optimised Frame Shift Drive (SCO)': 'fsd sco mk2',
+    'Power Plant': 'pp', 'Power Distributor': 'pd distro', 'Shield Generator': 'sg shields', 'Bi-Weave Shield Generator': 'biweave shields',
+    'Prismatic Shield Generator': 'prismatic shields', 'Shield Cell Bank': 'scb', 'Hull Reinforcement Package': 'hrp',
+    'Module Reinforcement Package': 'mrp', 'Auto Field-Maintenance Unit': 'afmu repair', 'Detailed Surface Scanner': 'dss',
+    'Electronic Countermeasure': 'ecm', 'Kill Warrant Scanner': 'kws', 'Frame Shift Wake Scanner': 'wake', 'Planetary Vehicle Hangar': 'srv',
+    'Large Planetary Vehicle Hangar': 'srv', 'Vessel Hangar': 'fighter', 'Mk II Vessel Hangar': 'fighter', 'Guardian FSD Booster': 'gfsd booster',
+    'Enhanced Performance Thrusters': 'ept', 'Experimental Weapon Stabiliser': 'ews', 'Multi-Cannon': 'mc multicannon',
+    'Advanced Docking Computer': 'adc', 'Standard Docking Computer': 'docking computer', 'Supercruise Assist': 'sca',
+    'Heat Sink Launcher': 'heatsink', 'Point Defence': 'pd'
+};
+
+let outfitModule = null;    // part type chosen in the search field
+let suggestHits = [];       // part types shown in the suggestion list
+let suggestIndex = -1;      // highlighted suggestion
+let suggestVariant = null;  // "6a" typed with the part: preselected size and rating
+
+const shipSlots = type => SHIP_SLOTS[type] || null;
+
+// Does the module fit any slot of the ship? Without slot data for the ship everything counts.
+function fitsShip(m, slots) {
+    if (!slots || m.armour) return true;
+    const size = Number(m.size);
+    if (m.category === 'hardpoint') return slots.hardpoints.some(h => h >= size);   // a small weapon also fits a larger hardpoint
+    if (m.category === 'utility') return slots.utility > 0;
+    const core = CORE_SLOT[m.name];
+    if (core !== undefined) {
+        if (size <= slots.core[core]) return true;                                    // smaller core parts fit too
+        if (m.name !== 'Fuel Tank') return false;                                     // only fuel tanks also go into optional slots
+    } else if (m.category === 'standard') {
+        return true;
+    }
+    return slots.internal.some(s => (Array.isArray(s) ? size <= s[0] && SLOT_RESTRICTIONS[s[1]].includes(m.name) : size <= s));
 }
 
-function refreshOutfitVariants() {
-    const name = $('outfit-module').value;
+// Part types that fit the chosen ship: { name, group, min, max, modules }
+function partTypes() {
+    const { type } = outfitShip();
+    const slots = shipSlots(type);
+    const types = new Map();
+    for (const m of MODULES) {
+        if ((m.armour && !isArmourFor(m, type)) || !fitsShip(m, slots)) continue;
+        if (!types.has(m.name)) types.set(m.name, { name: m.name, group: (MODULE_GROUPS.find(([, inGroup]) => inGroup(m)) || ['Other'])[0], sizes: [], modules: [] });
+        const part = types.get(m.name);
+        part.sizes.push(Number(m.size));
+        part.modules.push(m);
+    }
+    return [...types.values()];
+}
+
+// Every word has to match the name, a search word or the group; "6a" or "6" picks the size (and rating) as well.
+function searchParts(query) {
+    const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+    const variant = words.find(w => /^[0-8][a-i]?$/.test(w)) || null;
+    const terms = words.filter(w => w !== variant);
+    const hits = [];
+    for (const part of partTypes()) {
+        const aliases = PART_ALIASES[part.name] || '';
+        const text = `${part.name} ${aliases} ${part.group}`.toLowerCase();
+        if (!terms.every(t => text.includes(t))) continue;
+        if (variant && !part.modules.some(m => `${m.size}${m.rating}`.toLowerCase().startsWith(variant))) continue;
+        const name = part.name.toLowerCase(), first = terms[0] || '';
+        const rank = !first ? 2 : name.startsWith(first) || aliases.split(' ').includes(first) ? 0 : ` ${name}`.includes(` ${first}`) ? 1 : 2;
+        hits.push({ part, rank });
+    }
+    hits.sort((a, b) => a.rank - b.rank || a.part.name.localeCompare(b.part.name));
+    return { variant, parts: hits.map(h => h.part) };
+}
+
+function sizeRange(part) {
+    const min = Math.min(...part.sizes), max = Math.max(...part.sizes);
+    if (part.modules[0].armour) return part.modules[0].ship;
+    return min === max ? `size ${min}` : `sizes ${min}–${max}`;
+}
+
+function renderSuggestions() {
+    const input = $('outfit-search'), list = $('outfit-suggest');
+    const { variant, parts } = searchParts(input.value);
+    suggestHits = parts.slice(0, 60);
+    suggestVariant = variant;
+    if (suggestIndex >= suggestHits.length) suggestIndex = suggestHits.length - 1;
+    list.innerHTML = suggestHits.length
+        ? suggestHits.map((p, i) => `<li role="option" id="outfit-option-${i}" data-part="${esc(p.name)}" aria-selected="${i === suggestIndex}">`
+            + `<span>${esc(p.name)}</span><span class="combo-meta">${esc(p.group)} · ${esc(sizeRange(p))}</span></li>`).join('')
+        : '<li class="combo-empty">No matching part fits this ship</li>';
+    list.hidden = false;
+    input.setAttribute('aria-expanded', 'true');
+    if (suggestIndex >= 0) {
+        input.setAttribute('aria-activedescendant', `outfit-option-${suggestIndex}`);
+        const active = $(`outfit-option-${suggestIndex}`);
+        if (active) active.scrollIntoView({ block: 'nearest' });
+    } else {
+        input.removeAttribute('aria-activedescendant');
+    }
+}
+
+function closeSuggestions() {
+    $('outfit-suggest').hidden = true;
+    $('outfit-search').setAttribute('aria-expanded', 'false');
+    $('outfit-search').removeAttribute('aria-activedescendant');
+}
+
+function choosePart(name, variant) {
+    outfitModule = name;
+    $('outfit-search').value = name;
+    suggestIndex = -1;
+    closeSuggestions();
+    refreshOutfitVariants(variant);
+}
+
+// The chosen ship changed: ship info, which sizes fit, and the list's fit marks.
+function refreshOutfitModules() {
     const { type, ship } = outfitShip();
-    const variants = MODULES.filter(m => m.name === name && (!m.armour || isArmourFor(m, type)))
+    const known = !ship ? '' : !ship.modules ? ' · board this ship once to read its modules'
+        : ` · fitted modules from the journal${ship.loadoutAt ? ` (${timeAgo(ship.loadoutAt)})` : ''}`;
+    const slots = shipSlots(type) ? '' : ' · slot sizes unknown for this ship, all sizes shown';
+    $('outfit-ship-info').textContent = `Landing pad ${PAD_LABEL[shipPad(type)] || '?'}${known}${slots}`;
+    refreshOutfitVariants();
+    renderOutfitParts();
+}
+
+function refreshOutfitVariants(wanted) {
+    const name = outfitModule;
+    const { type, ship } = outfitShip();
+    const ofType = MODULES.filter(m => m.name === name && (!m.armour || isArmourFor(m, type)));
+    const variants = ofType.filter(m => fitsShip(m, shipSlots(type)))
         .sort((a, b) => a.size - b.size || RATING_ORDER.indexOf(a.rating) - RATING_ORDER.indexOf(b.rating)
             || a.mount.localeCompare(b.mount) || a.guidance.localeCompare(b.guidance));
     const fittedNow = new Set(ship && ship.modules || []);
-    const fitted = variants.filter(m => fittedNow.has(m.symbol));
+    const fitted = ofType.filter(m => fittedNow.has(m.symbol));
     const select = $('outfit-variant');
-    select.innerHTML = variants.map(m => `<option value="${esc(m.symbol)}">${esc(variantLabel(m))}${fittedNow.has(m.symbol) ? ' ✓ fitted' : ''}</option>`).join('');
-    // Suggest the best rating in the size that is fitted now: the usual upgrade.
+    select.innerHTML = variants.length
+        ? variants.map(m => `<option value="${esc(m.symbol)}">${esc(variantLabel(m))}${fittedNow.has(m.symbol) ? ' ✓ fitted' : ''}</option>`).join('')
+        : `<option value="">${name ? `Does not fit the ${esc(shipLabel(type))}` : 'Choose a part first'}</option>`;
+    select.disabled = !variants.length;
+    // "6a scoop" picks 6A; otherwise the best rating in the size that is fitted now (the usual upgrade),
+    // or the largest size that fits the ship.
     const now = fitted[0];
-    const upgrade = now && variants.find(m => m.size === now.size && m.mount === now.mount && m.guidance === now.guidance);
-    if (upgrade) select.value = upgrade.symbol;
+    const largest = Math.max(...variants.map(m => Number(m.size)));
+    const pick = (wanted && variants.find(m => `${m.size}${m.rating}`.toLowerCase().startsWith(wanted)))
+        || (now && variants.find(m => m.size === now.size && m.mount === now.mount && m.guidance === now.guidance))
+        || variants.find(m => Number(m.size) === largest);
+    if (pick) select.value = pick.symbol;
     $('outfit-fitted').textContent = fitted.length ? `Fitted on ${ship.name || shipLabel(ship.type)}: ${fitted.map(partLabel).join(', ')}` : '';
 }
 
 function renderOutfitParts() {
+    const { type } = outfitShip();
+    const slots = shipSlots(type);
     $('outfit-parts').innerHTML = outfitParts.length
         ? outfitParts.map(symbol => {
-            const label = esc(partLabel(MODULE_BY_SYMBOL.get(symbol)));
-            return `<span class="part-chip">${label}<button type="button" data-remove-part="${esc(symbol)}" aria-label="Remove ${label}">×</button></span>`;
+            const m = MODULE_BY_SYMBOL.get(symbol);
+            const label = esc(partLabel(m));
+            const fits = fitsShip(m, slots) && (!m.armour || isArmourFor(m, type));
+            const warning = fits ? '' : `<span class="part-warn" title="Does not fit the ${esc(shipLabel(type))}">⚠</span>`;
+            return `<span class="part-chip${fits ? '' : ' no-fit'}">${warning}${label}<button type="button" data-remove-part="${esc(symbol)}" aria-label="Remove ${label}">×</button></span>`;
         }).join('')
-        : '<span class="muted">No parts on the list yet: choose a part above and add it.</span>';
+        : '<span class="muted">No parts on the list yet: search a part above and add it.</span>';
 }
 
 function saveOutfitParts() {
@@ -1418,7 +1575,7 @@ function loadOutfitParts() {
 
 function addOutfitPart() {
     const symbol = $('outfit-variant').value;
-    if (!MODULE_BY_SYMBOL.has(symbol)) return;
+    if (!MODULE_BY_SYMBOL.has(symbol)) return showToast('Search a part and pick it from the list first', true);
     if (outfitParts.includes(symbol)) return showToast('This part is already on the list', true);
     if (outfitParts.length >= OUTFIT_MAX_PARTS) return showToast(`At most ${OUTFIT_MAX_PARTS} parts per search`, true);
     outfitParts.push(symbol);
