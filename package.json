@@ -1,7 +1,7 @@
 {
   "name": "alopex-os",
   "productName": "ALOPEX OS",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "description": "ALOPEX OS – Elite Dangerous navigator (desktop app)",
   "author": "CMDR Fuxy",
   "license": "UNLICENSED",
@@ -40,7 +40,7 @@
         "nsis",
         "portable"
       ],
-      "icon": "build/icon.png"
+      "icon": "build/icon.ico"
     },
     "portable": {
       "artifactName": "ALOPEX-OS-${version}-portable.exe"

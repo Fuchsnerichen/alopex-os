@@ -109,7 +109,7 @@ Unter Windows ist das der einfachste Weg. Unter Linux braucht der Installer zus�
 | `app/outfitting-data.js` | Modulliste für Outfitting, erzeugt aus EDCD FDevIDs `outfitting.csv` |
 | `scripts/build-outfitting-data.mjs` | Erzeugt `app/outfitting-data.js` neu: `node scripts/build-outfitting-data.mjs <Pfad>/outfitting.csv` (bei neuen Schiffen oder Modulen) |
 | `test/` | Unit-Tests (`lib.test.mjs`) und End-to-End-Tests der echten App (`app.test.mjs`) |
-| `build/icon.png` | App-Icon |
+| `build/icon.*` | App-Icon, der Fuchskopf aus dem Intro: `icon.svg` (Zeichnung), `icon.png` (512 px), `icon.ico` (16–256 px, kleine Größen vereinfacht). Neu erzeugen mit `node scripts/build-icons.mjs` |
 | `LICENSE` | Nutzungsbedingungen (nur lesen) und Lizenzen von Schrift und Moduldaten |
 
 ## Lizenz
