@@ -44,7 +44,9 @@ mit einem kostenpflichtigen Zertifikat signiert ist. *Weitere Informationen* →
   Optional internal, darin z. B. *Lasers*, *Mining tools*, *Shields & hull*): Unter *Category* eine Kategorie
   wählen, um ihre Teile durchzublättern, oder den Kategorienamen eintippen (*mining*). Angeboten werden nur
   Größen, die in einen Steckplatz des gewählten Schiffs passen; Teile auf der Liste, die nicht passen, sind rot
-  markiert. *A-rated core package* setzt Thrusters, Power Plant, Frame Shift Drive (SCO)
+  markiert. Das gilt auch für Spezial-Steckplätze, etwa die vier Mining-Hardpoints der Type-11 Prospector.
+  Teile, die nur ein Schiff nehmen kann (z. B. Mining Volley Repeater und Mk II Mining Multi-Limpet Controller
+  der Type-11), haben einen ★ und unter *Category* einen eigenen Eintrag; *mk2* findet alle Mk-II-Teile. *A-rated core package* setzt Thrusters, Power Plant, Frame Shift Drive (SCO)
   und Power Distributor in A auf die Liste, jeweils in der Größe, die das gewählte Schiff nimmt; wechselst du das
   Schiff, passt sich das Paket an. Die App zeigt die nächsten Stationen, die *alle* Teile verkaufen, mit Preisen. Bei Schiffen
   aus der Flotte steht dabei, was gerade eingebaut ist.
@@ -118,7 +120,7 @@ Unter Windows ist das der einfachste Weg. Unter Linux braucht der Installer zus�
 | `lib/` | Ardent, Spansh, Warennamen, Journal, Updates und der gemeinsame Netzwerk-Helfer |
 | `app/` | Die Oberfläche (HTML, CSS, JavaScript, Schrift Rajdhani unter SIL OFL 1.1) |
 | `app/outfitting-data.js` | Modulliste für Outfitting, erzeugt aus EDCD FDevIDs `outfitting.csv` |
-| `app/ship-slots.js` | Steckplatz-Größen jedes Schiffs, erzeugt aus EDCD coriolis-data |
+| `app/ship-slots.js` | Steckplatz-Größen jedes Schiffs, Spezial-Steckplätze und Teile nur für ein Schiff, erzeugt aus EDCD coriolis-data |
 | `scripts/build-ship-slots.mjs` | Erzeugt `app/ship-slots.js` neu: `node scripts/build-ship-slots.mjs <Pfad>/coriolis-data <Pfad>/FDevIDs` |
 | `scripts/build-outfitting-data.mjs` | Erzeugt `app/outfitting-data.js` neu: `node scripts/build-outfitting-data.mjs <Pfad>/outfitting.csv` (bei neuen Schiffen oder Modulen) |
 | `test/` | Unit-Tests (`lib.test.mjs`) und End-to-End-Tests der echten App (`app.test.mjs`) |

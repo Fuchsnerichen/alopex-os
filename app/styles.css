@@ -236,6 +236,7 @@ input:focus, select:focus { border-color: var(--ed-border-focus); box-shadow: 0 
 .combo-list li { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; white-space: nowrap; padding: 6px 10px; cursor: pointer; color: var(--ed-cyan); font-size: 0.9rem; }
 .combo-list li[aria-selected="true"], .combo-list li[data-part]:hover { background: var(--ed-orange-dim); color: var(--ed-orange); }
 .combo-meta { flex: none; font-size: 0.75rem; color: var(--ed-text-muted); letter-spacing: 0.5px; }
+.part-special { color: var(--ed-orange); }
 .combo-list .combo-empty { cursor: default; color: var(--ed-text-muted); }
 /* category heading, stays on top while its parts scroll by */
 .combo-list .combo-group { position: sticky; top: -4px; z-index: 1; cursor: default; padding: 6px 10px 4px; background: var(--ed-panel); border-bottom: 1px solid var(--ed-border);
