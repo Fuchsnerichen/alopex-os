@@ -1,0 +1,27 @@
+ALOPEX OS
+Copyright (c) 2026 CMDR Fuxy. All rights reserved.
+
+The source code in this repository is published for reading only.
+
+You may view it on GitHub and, as GitHub's Terms of Service allow for public
+repositories, fork it within GitHub. You may run the released ALOPEX OS app for
+your own, non-commercial use.
+
+No other permission is granted. Without prior written permission from the author
+you may not copy, modify, merge, publish, distribute, sublicense or sell this
+software or any part of it.
+
+Third-party material in this repository keeps its own license:
+- Rajdhani font (app/fonts/): Indian Type Foundry, SIL Open Font License 1.1,
+  see app/fonts/OFL.txt.
+- Module data in app/outfitting-data.js: generated from EDCD FDevIDs
+  (https://github.com/EDCD/FDevIDs).
+
+Elite Dangerous is a trademark of Frontier Developments plc. ALOPEX OS is a fan
+project and is not affiliated with or endorsed by Frontier Developments.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHOR BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR ITS USE.

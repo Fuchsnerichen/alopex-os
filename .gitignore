@@ -1,0 +1,4 @@
+node_modules/
+dist/
+# checksums belong to the release downloads, not to the source
+SHA256SUMS.txt

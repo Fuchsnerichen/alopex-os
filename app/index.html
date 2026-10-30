@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+    <title>ALOPEX OS // E.D. Master Navigator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Start intro: the arctic fox (Alopex lagopus) and the ship computer reporting what the journal says.
+         renderer.js (INTRO) runs it while the journal loads; a click or any key skips it. -->
+    <div id="intro" class="intro" aria-hidden="true">
+        <div class="intro-inner">
+            <div class="intro-brand">
+                <svg id="intro-fox" class="intro-fox" viewBox="0 0 200 190"></svg>
+                <div class="intro-word">ALOPEX <b>OS</b></div>
+                <div class="intro-tag">E.D. MASTER NAVIGATOR</div>
+                <div class="intro-ver">v%APP_VERSION% · by %APP_AUTHOR%</div>
+            </div>
+            <div class="intro-console">
+                <div class="intro-head">SHIP COMPUTER // BOOT SEQUENCE</div>
+                <div class="intro-line" style="--i:1"><span>JOURNAL UPLINK</span><i></i><b id="intro-journal" class="pending">···</b></div>
+                <div class="intro-line" style="--i:2"><span>COMMANDER</span><i></i><b id="intro-cmdr" class="pending">···</b></div>
+                <div class="intro-line" style="--i:3"><span>LOCATION</span><i></i><b id="intro-loc" class="pending">···</b></div>
+                <div class="intro-line" style="--i:4"><span>FLEET REGISTRY</span><i></i><b id="intro-fleet" class="pending">···</b></div>
+                <div class="intro-line" style="--i:5"><span>MARKET NETWORK · ARDENT</span><i></i><b class="sb">STANDBY</b></div>
+                <div class="intro-line" style="--i:6"><span>STELLAR DATABASE · SPANSH</span><i></i><b class="sb">STANDBY</b></div>
+                <div class="intro-bar"><i id="intro-bar"></i></div>
+                <div class="intro-welcome" id="intro-welcome">WELCOME, COMMANDER</div>
+            </div>
+        </div>
+        <div class="intro-corner tl">ALOPEX LAGOPUS</div>
+        <div class="intro-corner br">CLICK OR PRESS ANY KEY TO SKIP</div>
+    </div>
+
+
+    <header>
+        <div class="logo">
+            <span>ALOPEX OS //</span> E.D. MASTER NAVIGATOR
+        </div>
+        <div class="live-sync-panel">
+            <div class="sync-info">
+                <span class="sync-label">LAST JOURNAL SYNC</span>
+                <span class="sync-time" id="sync-time">—</span>
+                <span class="journal-status" id="journal-status">🔴 Journal Auto-Link inactive</span>
+            </div>
+            <div class="sync-buttons">
+                <button id="btn-audio" class="btn-cyan btn-small" data-action="toggleAudio">🔊 SFX: ON</button>
+                <button id="btn-journal" class="btn-cyan btn-small" data-action="connectJournal" data-sound title="Choose a different journal folder">Select Folder</button>
+                <button id="btn-sync" class="btn-cyan btn-small" data-action="rescanJournal" data-sound>Re-scan Journal</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="global-inputs">
+        <div class="input-group">
+            <label for="theme-selector">HUD THEME</label>
+            <select id="theme-selector">
+                <option value="default">Imperial (Ice Blue)</option>
+                <option value="classic">Classic (Orange / Cyan)</option>
+                <option value="federal">Tactical / Federal (Green)</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <div class="label-row">
+                <label for="ship-preset">LIVE FLEET (JOURNAL)</label>
+                <button type="button" class="btn-manage" data-action="openShipManager">[ SCAN FLEET ]</button>
+            </div>
+            <select id="ship-preset">
+                <option value="custom">-- No Live Data (Waiting for Sync) --</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <label for="current-system">CURRENT SYSTEM</label>
+            <input type="text" id="current-system" value="Shinrarta Dezhra" placeholder="Enter system name..." autocomplete="off">
+        </div>
+        <div class="input-group">
+            <label for="jump-range">JUMP RANGE (LY)</label>
+            <input type="number" id="jump-range" value="35.5" step="0.1" min="1">
+        </div>
+        <div class="input-group">
+            <label for="pad-size">SHIP LANDING PAD</label>
+            <select id="pad-size">
+                <option value="1">Small</option>
+                <option value="2">Medium</option>
+                <option value="3" selected>Large</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <label for="include-carriers">STATIONS</label>
+            <label class="checkbox-row"><input type="checkbox" id="include-carriers"> Include Fleet Carriers</label>
+            <label class="checkbox-row"><input type="checkbox" id="include-planetary" checked> Include planetary stations</label>
+        </div>
+        <div class="input-group">
+            <label for="intro-enabled">STARTUP</label>
+            <label class="checkbox-row"><input type="checkbox" id="intro-enabled" checked> Show intro</label>
+        </div>
+    </div>
+
+    <div class="tabs" role="tablist">
+        <button class="tab-btn active" role="tab" aria-selected="true" data-tab="trade" data-sound>Trade Loop</button>
+        <button class="tab-btn" role="tab" aria-selected="false" data-tab="passenger" data-sound>Passenger Runs</button>
+        <button class="tab-btn" role="tab" aria-selected="false" data-tab="mining" data-sound>Mining</button>
+        <button class="tab-btn" role="tab" aria-selected="false" data-tab="exobio" data-sound>Exobiology</button>
+        <button class="tab-btn" role="tab" aria-selected="false" data-tab="outfit" data-sound>Outfitting</button>
+    </div>
+
+    <!-- Trade Tab -->
+    <div id="trade" class="tab-content active" role="tabpanel">
+        <h3>Trade Routes & Loop Planner</h3>
+        <div class="form-grid">
+            <div class="input-group">
+                <label for="cargo-space">CARGO CAPACITY (TONS)</label>
+                <input type="number" id="cargo-space" value="728" min="1">
+            </div>
+            <div class="input-group">
+                <label for="max-trade-dist">MAX ROUTE DISTANCE (LY, MAX 500)</label>
+                <input type="number" id="max-trade-dist" value="50" min="1" max="500">
+            </div>
+            <div class="input-group">
+                <label for="price-age">MAX PRICE AGE</label>
+                <select id="price-age">
+                    <option value="1">1 day</option>
+                    <option value="3">3 days</option>
+                    <option value="7" selected>7 days</option>
+                    <option value="14">14 days</option>
+                    <option value="30">30 days</option>
+                </select>
+            </div>
+        </div>
+        <button data-action="searchTrade" data-sound>Find most profitable Loop Routes</button>
+        <p class="source-note">Live market data from the Ardent Insight API (collected via EDDN). Starts from the stations in your current system and checks a return cargo for the way back. Every price shows how old it is.</p>
+        <div id="trade-loading" class="loading-container">
+            <div class="loading-text">CALCULATING MARKET PRICES & DISTANCES...</div>
+            <div class="scanner-bar"></div>
+        </div>
+        <div id="trade-results" class="results-container" aria-live="polite"></div>
+    </div>
+
+    <!-- Passenger Tab -->
+    <div id="passenger" class="tab-content" role="tabpanel">
+        <h3>Passenger & VIP Transit</h3>
+        <div class="form-grid">
+            <div class="input-group">
+                <label for="passenger-space">CABIN CAPACITY (TOTAL)</label>
+                <input type="number" id="passenger-space" value="32" min="0">
+            </div>
+            <div class="input-group">
+                <label for="passenger-type">MISSION TYPE</label>
+                <select id="passenger-type">
+                    <option value="all">All passenger missions</option>
+                    <option value="vip">VIP (Sightseeing / Celebrities)</option>
+                    <option value="bulk">Bulk Transport (Refugees / Workers)</option>
+                </select>
+            </div>
+        </div>
+        <button data-action="searchPassenger" data-sound>Analyse my passenger missions</button>
+        <p class="source-note">Mission boards are not available through any public API. This view reads your own journal: active passenger missions and the routes that paid best in your completed runs.</p>
+        <div id="passenger-loading" class="loading-container">
+            <div class="loading-text">READING MISSION LOG...</div>
+            <div class="scanner-bar"></div>
+        </div>
+        <div id="passenger-results" class="results-container" aria-live="polite"></div>
+    </div>
+
+    <!-- Mining Tab -->
+    <div id="mining" class="tab-content" role="tabpanel">
+        <h3>Mining Hotspot Scouting Network</h3>
+        <div class="form-grid">
+            <div class="input-group">
+                <label for="mine-resource">TARGET RESOURCE</label>
+                <select id="mine-resource"></select>
+            </div>
+            <div class="input-group">
+                <label for="mine-radius">SEARCH RADIUS (LY)</label>
+                <input type="number" id="mine-radius" value="50" min="1" max="500">
+            </div>
+            <div class="input-group">
+                <label for="current-cargo">CURRENT CARGO (TONS)</label>
+                <input type="number" id="current-cargo" value="128" min="0" placeholder="For demand check">
+            </div>
+            <div class="input-group">
+                <label for="sell-radius">MAX SELL DISTANCE (LY, MAX 500)</label>
+                <input type="number" id="sell-radius" value="100" min="1" max="500">
+            </div>
+        </div>
+        <button data-action="searchMining" data-sound>Scan sector for ring hotspots</button>
+        <p class="source-note">Hotspots: Spansh body search (rings that commanders have mapped with the DSS). Sell prices: Ardent Insight API.</p>
+        <div id="mining-loading" class="loading-container">
+            <div class="loading-text">CONNECTING TO NETWORK... SEARCHING FOR RINGS...</div>
+            <div class="scanner-bar"></div>
+        </div>
+        <div id="mining-results" class="results-container" aria-live="polite"></div>
+    </div>
+
+    <!-- Exobiology Tab -->
+    <div id="exobio" class="tab-content" role="tabpanel">
+        <h3>Exobiology (Artemis Suit) & Database Search</h3>
+        <div class="form-grid">
+            <div class="input-group">
+                <label for="exo-target">TARGET SPECIES (VISTA GENOMICS BASE VALUE)</label>
+                <select id="exo-target"></select>
+            </div>
+            <div class="input-group">
+                <label for="exo-radius">MAX SEARCH RADIUS (LY)</label>
+                <input type="number" id="exo-radius" value="100" min="1" max="1000">
+            </div>
+        </div>
+        <button data-action="searchExo" data-sound>Query Galactic Database (Spansh)</button>
+        <p class="source-note">Bodies on which other commanders have already logged this species (Spansh body search). Values: Vista Genomics base values from the Canonn codex reference. Because the species is already logged on these bodies, the ×5 first-logged bonus has most likely been claimed.</p>
+        <div id="exobio-loading" class="loading-container">
+            <div class="loading-text">SEARCHING PLANETARY SURVEY ARCHIVE...</div>
+            <div class="scanner-bar"></div>
+        </div>
+        <div id="exobio-results" class="results-container" aria-live="polite"></div>
+    </div>
+
+    <!-- Outfitting Tab -->
+    <div id="outfit" class="tab-content" role="tabpanel">
+        <h3>Outfitting: one station for all parts</h3>
+        <div class="form-grid">
+            <div class="input-group">
+                <label for="outfit-ship">SHIP</label>
+                <select id="outfit-ship"></select>
+                <div id="outfit-ship-info" class="field-note"></div>
+            </div>
+            <div class="input-group">
+                <label for="outfit-module">PART</label>
+                <select id="outfit-module"></select>
+                <div id="outfit-fitted" class="field-note"></div>
+            </div>
+            <div class="input-group">
+                <label for="outfit-variant">SIZE / RATING</label>
+                <select id="outfit-variant"></select>
+            </div>
+            <div class="input-group">
+                <label for="outfit-radius">MAX DISTANCE (LY, MAX 500)</label>
+                <input type="number" id="outfit-radius" value="100" min="1" max="500">
+            </div>
+            <div class="input-group">
+                <label for="outfit-buy-ship">SHIPYARD</label>
+                <label class="checkbox-row"><input type="checkbox" id="outfit-buy-ship"> Station also sells this ship type</label>
+            </div>
+        </div>
+        <button class="btn-cyan" data-action="addOutfitPart" data-sound>+ Add part to the list</button>
+        <div id="outfit-parts" class="part-list" aria-live="polite"></div>
+        <button data-action="searchOutfit" data-sound>Find the nearest station with all parts</button>
+        <p class="source-note">Outfitting data from the Spansh station search (collected via EDDN), module list from EDCD FDevIDs. The app checks the full module list of every station, so a result sells every part on the list. Landing pad from the chosen ship; Fleet Carriers and planetary stations follow the STATIONS switches above. Fleet ships show what is fitted now (journal). With SHIPYARD ticked, the station also has to sell the chosen ship type; its price counts into the total.</p>
+        <div id="outfit-loading" class="loading-container">
+            <div class="loading-text">SCANNING OUTFITTING DATABASE...</div>
+            <div class="scanner-bar"></div>
+        </div>
+        <div id="outfit-results" class="results-container" aria-live="polite"></div>
+    </div>
+
+    <!-- Version and author are filled in by the app core when it serves this page (main.mjs). -->
+    <footer class="app-footer">ALOPEX OS v%APP_VERSION% · by %APP_AUTHOR%</footer>
+
+    <!-- Ship Manager Modal (Live Fleet) -->
+    <div id="ship-manager-modal" class="modal-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="ship-manager-title">
+        <div class="modal-content">
+            <h3 id="ship-manager-title" style="color: var(--ed-cyan); margin-bottom: 10px; border-bottom: 1px solid var(--ed-border); padding-bottom: 10px;">LIVE FLEET UPLINK</h3>
+
+            <p style="font-size: 0.85rem; color: var(--ed-text-muted); margin-bottom: 15px; line-height: 1.4;">
+                INFO: Fleet data is read live from your ship computer.
+                Board a ship in-game to completely synchronize its loadout.
+            </p>
+
+            <div id="sm-ship-list" style="max-height: 400px; overflow-y: auto; margin-bottom: 20px; padding-right: 5px;"></div>
+
+            <div style="text-align: right; margin-top: 15px; border-top: 1px solid var(--ed-border); padding-top: 15px;">
+                <button id="btn-close-modal" data-action="closeShipManager">Close Window</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast notifications -->
+    <div id="toast-container" role="status" aria-live="polite"></div>
+
+    <script src="outfitting-data.js"></script>
+    <script src="renderer.js"></script>
+</body>
+</html>

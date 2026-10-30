@@ -1,0 +1,72 @@
+{
+  "name": "alopex-os",
+  "productName": "ALOPEX OS",
+  "version": "1.0.9",
+  "description": "ALOPEX OS – Elite Dangerous navigator (desktop app)",
+  "author": "CMDR Fuxy",
+  "license": "UNLICENSED",
+  "private": true,
+  "type": "module",
+  "main": "main.mjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/lib.test.mjs test/app.test.mjs",
+    "test:linux": "node --test test/lib.test.mjs && xvfb-run -a node --test test/app.test.mjs",
+    "dist": "electron-builder --win nsis portable --x64 --publish never"
+  },
+  "devDependencies": {
+    "@electron/fuses": "2.1.3",
+    "electron": "44.7.0",
+    "electron-builder": "26.17.0",
+    "playwright": "1.63.0"
+  },
+  "build": {
+    "appId": "os.alopex.navigator",
+    "productName": "ALOPEX OS",
+    "copyright": "© 2026 CMDR Fuxy",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.mjs",
+      "preload.cjs",
+      "lib/**",
+      "app/**"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "build/icon.png"
+    },
+    "portable": {
+      "artifactName": "ALOPEX-OS-${version}-portable.exe"
+    },
+    "electronFuses": {
+      "runAsNode": false,
+      "enableCookieEncryption": true,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "enableEmbeddedAsarIntegrityValidation": true,
+      "onlyLoadAppFromAsar": true,
+      "loadBrowserProcessSpecificV8Snapshot": false,
+      "grantFileProtocolExtraPrivileges": false
+    },
+    "electronLanguages": [
+      "en-US",
+      "de"
+    ],
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "artifactName": "ALOPEX-OS-${version}-Setup.exe",
+      "shortcutName": "ALOPEX OS",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "publish": null
+  }
+}
