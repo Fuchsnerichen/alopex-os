@@ -397,7 +397,9 @@ test('outfitting: the nearest station that sells every part on the list', async 
     await pickPart('mil grade', 'Military Grade Composite');
     assert.equal(await win.inputValue('#outfit-variant'), 'anaconda_armour_grade3');
     await win.click('[data-action="addOutfitPart"]');
-    assert.match(await win.$eval('#outfit-parts', e => e.innerText), /6A Frame Shift Drive[\s\S]*6A Fuel Scoop[\s\S]*Military Grade Composite \(Anaconda\)/i);
+    // grouped by slot type in the order of the game; bulkheads are core internals
+    assert.deepEqual(await win.$$eval('#outfit-parts .part-group-label', els => els.map(e => e.textContent)), ['Core internal', 'Optional internal']);
+    assert.match(await win.$eval('#outfit-parts', e => e.innerText), /Core internal\s+Military Grade Composite \(Anaconda\)[\s\S]*6A Frame Shift Drive[\s\S]*Optional internal\s+6A Fuel Scoop/i);
     // parts that do not fit another ship are marked on the list
     await win.selectOption('#outfit-ship', 'type:cobramkiii');
     assert.equal(await win.$$eval('#outfit-parts .no-fit', chips => chips.length), 3);
@@ -505,6 +507,57 @@ test('outfitting: the A-rated core package follows the chosen ship', async () =>
     assert.match(text, /✓ 6A Frame Shift Drive \(SCO\): 16,179,531 CR/i);
     assert.deepEqual(JSON.parse(await win.evaluate(() => localStorage.getItem('alopex_outfit_parts'))), ['package:core-a']);
     await win.click('[data-remove-part="package:core-a"]');
+});
+
+test('outfitting: parts sorted into categories', async () => {
+    const headings = () => win.$$eval('#outfit-suggest .combo-group', els => els.map(e => e.textContent));
+    const listed = () => win.$$eval('#outfit-suggest [data-part]', els => els.map(e => e.dataset.part));
+    // the category list: slot groups in the order of the game, with the number of parts that fit the ship
+    assert.deepEqual(await win.$$eval('#outfit-category optgroup', groups => groups.map(g => g.label)),
+        ['Hardpoints', 'Utility mounts', 'Core internal', 'Optional internal']);
+    const options = await win.$$eval('#outfit-category option', els => els.map(e => e.textContent));
+    assert.match(options[0], /^All parts \(\d+\)$/);
+    assert.ok(options.includes('All hardpoints (45)') && options.some(o => /^Lasers \(\d+\)$/.test(o)), options.join());
+    const anaconda = parseInt(options[0].match(/\d+/)[0], 10);
+    await win.selectOption('#outfit-ship', 'type:sidewinder');
+    const sidewinder = parseInt((await win.textContent('#outfit-category option')).match(/\d+/)[0], 10);
+    assert.ok(sidewinder < anaconda, `${sidewinder} parts fit a Sidewinder, ${anaconda} an Anaconda`);
+    await win.selectOption('#outfit-ship', 'fleet:7');
+
+    // picking a category opens the list of its parts
+    await win.selectOption('#outfit-category', 'Hardpoints/Lasers');
+    await win.waitForSelector('#outfit-suggest:not([hidden]) [data-part]');
+    assert.deepEqual(await headings(), ['Hardpoints · Lasers']);
+    assert.ok((await listed()).every(name => /Laser/.test(name)) && (await listed()).includes('Beam Laser'));
+    // within a category the search narrows it down; a part from another category is not found there
+    await win.selectOption('#outfit-category', 'Utility mounts');
+    await win.fill('#outfit-search', 'pulse');
+    assert.deepEqual(await listed(), ['Pulse Wave Analyser', 'Pulse Wave Xeno Scanner']);
+    await win.fill('#outfit-search', 'fsd');
+    assert.match(await win.textContent('#outfit-suggest'), /No matching part in Utility mounts fits this ship/);
+    await win.selectOption('#outfit-category', '');
+
+    // the name of a category finds all its parts, after the parts that carry the word in their name
+    await win.fill('#outfit-search', 'mining');
+    assert.deepEqual((await headings()).slice(0, 2), ['Hardpoints · Mining tools', 'Optional internal · Mining & refining']);
+    const mining = await listed();
+    assert.ok(mining.indexOf('Mining Laser') < mining.indexOf('Abrasion Blaster') && mining.includes('Refinery'), mining.join());
+    // the category with the best match comes first: the drive, not the wake scanner
+    await win.fill('#outfit-search', 'frame shift');
+    assert.equal((await headings())[0], 'Core internal · Power & drives');
+    await win.keyboard.press('Enter');
+    assert.equal(await win.inputValue('#outfit-search'), 'Frame Shift Drive');
+    // with a part chosen the list shows everything again, in the order of the game; Enter keeps the part
+    await win.click('#outfit-radius');
+    await win.click('#outfit-search');
+    assert.equal((await headings())[0], 'Hardpoints · Anti-Xeno & Guardian');
+    await win.keyboard.press('Enter');
+    assert.equal(await win.inputValue('#outfit-search'), 'Frame Shift Drive');
+    await win.click('[data-action="addOutfitPart"]');
+    await pickPart('beam', 'Beam Laser');
+    await win.click('[data-action="addOutfitPart"]');
+    assert.deepEqual(await win.$$eval('#outfit-parts .part-group-label', els => els.map(e => e.textContent)), ['Hardpoints', 'Core internal']);
+    while (await win.$('#outfit-parts [data-remove-part]')) await win.click('#outfit-parts [data-remove-part]');
 });
 
 test('copy buttons write to the clipboard', async () => {

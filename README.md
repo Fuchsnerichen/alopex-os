@@ -40,8 +40,11 @@ mit einem kostenpflichtigen Zertifikat signiert ist. *Weitere Informationen* →
   Depleted). Ringe ohne bekannte Reserve-Stufe fallen dann heraus; die Stufe steht bei jedem Ergebnis dabei.
 - **Outfitting:** Schiff wählen (aus der Flotte oder einen Schiffstyp), die gewünschten Teile auf die Liste
   setzen, suchen. Teile findest du per Texteingabe, auch mit Kürzeln wie *FSD*, *SCB*, *HRP* oder gleich mit
-  Größe (*6A scoop*). Angeboten werden nur Größen, die in einen Steckplatz des gewählten Schiffs passen; Teile
-  auf der Liste, die nicht passen, sind rot markiert. *A-rated core package* setzt Thrusters, Power Plant, Frame Shift Drive (SCO)
+  Größe (*6A scoop*). Die Teile sind nach Kategorien sortiert wie im Spiel (Hardpoints, Utility mounts, Core und
+  Optional internal, darin z. B. *Lasers*, *Mining tools*, *Shields & hull*): Unter *Category* eine Kategorie
+  wählen, um ihre Teile durchzublättern, oder den Kategorienamen eintippen (*mining*). Angeboten werden nur
+  Größen, die in einen Steckplatz des gewählten Schiffs passen; Teile auf der Liste, die nicht passen, sind rot
+  markiert. *A-rated core package* setzt Thrusters, Power Plant, Frame Shift Drive (SCO)
   und Power Distributor in A auf die Liste, jeweils in der Größe, die das gewählte Schiff nimmt; wechselst du das
   Schiff, passt sich das Paket an. Die App zeigt die nächsten Stationen, die *alle* Teile verkaufen, mit Preisen. Bei Schiffen
   aus der Flotte steht dabei, was gerade eingebaut ist.

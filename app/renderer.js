@@ -605,6 +605,12 @@ document.addEventListener('mousedown', e => {
 $('theme-selector').addEventListener('change', () => changeTheme());
 $('ship-preset').addEventListener('change', () => { applyPreset(); playTone('success'); });
 $('outfit-ship').addEventListener('change', () => { outfitShipChosen = true; refreshOutfitModules(); });
+// a category opens the list of its parts
+$('outfit-category').addEventListener('change', () => {
+    suggestIndex = -1;
+    if (document.activeElement === $('outfit-search')) renderSuggestions();
+    else $('outfit-search').focus();
+});
 $('outfit-search').addEventListener('input', () => {
     if ($('outfit-search').value !== outfitModule) {
         outfitModule = null;
@@ -624,6 +630,7 @@ $('outfit-search').addEventListener('keydown', e => {
         renderSuggestions();
     } else if (e.key === 'Enter') {
         e.preventDefault();
+        if (suggestIndex < 0 && $('outfit-search').value === outfitModule) return closeSuggestions();   // keep the chosen part
         const hit = suggestHits[Math.max(0, suggestIndex)];
         if (hit) choosePart(hit.name, suggestVariant);
     } else if (e.key === 'Escape') {
@@ -1357,13 +1364,45 @@ const MODULES = OUTFITTING_MODULES.map(([symbol, category, name, cls, rating, mo
     size: (/_size(\d)/i.exec(symbol) || [])[1] || cls     // the source lists the size 6 Mk II cabins as class 5
 }));
 const MODULE_BY_SYMBOL = new Map(MODULES.map(m => [m.symbol, m]));
-const MODULE_GROUPS = [
-    ['Core internal', m => m.category === 'standard' && !m.armour],
-    ['Optional internal', m => m.category === 'internal'],
-    ['Hardpoints', m => m.category === 'hardpoint'],
-    ['Utility mounts', m => m.category === 'utility'],
-    ['Armour', m => m.armour]
+// Part categories, slot groups in the order of the outfitting screen in the game. The first category whose
+// test matches a module wins; a module none of them knows (new in the data) goes to "Other" of its slot group.
+const SLOT_GROUPS = [
+    ['Hardpoints', m => m.category === 'hardpoint', [
+        ['Anti-Xeno & Guardian', /^(Enhanced )?AX |Enzyme|Guardian|Remote Release/],
+        ['Mining tools', /Mining|Abrasion|Seismic|Sub-Surface/],
+        ['Lasers', /Laser/],
+        ['Missiles, torpedoes & mines', /Missile|Torpedo|Mine Launcher|FSD Disruptor/],
+        ['Cannons & kinetic', /Cannon|Rail Gun|Plasma/]
+    ]],
+    ['Utility mounts', m => m.category === 'utility', [
+        ['Defence', /Shield Booster|Point Defence|Chaff|Heat Sink|Countermeasure/],
+        ['Scanners', /Cargo Scanner|Warrant|Wake|Pulse Wave Analyser/],
+        ['Anti-Xeno', /Xeno|Shutdown Field/]
+    ]],
+    // FDevIDs lists the Guardian hybrid power plant and distributor as optional internals, but they go into core slots
+    ['Core internal', m => m.category === 'standard' || /^Guardian Hybrid Power/.test(m.name), [
+        ['Bulkheads', m => m.armour],
+        ['Power & drives', /Power Plant|Thrusters|Frame Shift Drive|Power Distributor/],
+        ['Life support, sensors & fuel', /Life Support|Sensors|Fuel Tank/]
+    ]],
+    ['Optional internal', m => m.category === 'internal', [
+        ['Shields & hull', /Shield Generator|Shield Cell Bank|Reinforcement/],
+        ['Mining & refining', /Refinery|Collector|Prospector|Mining/],
+        ['Limpets', /Limpet/],
+        ['Cargo & passengers', /Cargo Rack|Passenger Cabin/],
+        ['Exploration & travel', /Fuel Scoop|FSD Booster|Surface Scanner|Field-Maintenance/],
+        ['Docking & flight', /Docking Computer|Supercruise Assist|Approach Suite/],
+        ['Hangars', /Hangar/],
+        ['Combat', /Interdictor|Weapon Stabiliser/]
+    ]]
 ];
+// In display order, "Other" last in each slot group: { key: "Hardpoints/Lasers", slot, name, label }
+const PART_CATEGORIES = SLOT_GROUPS.flatMap(([slot, inSlot, categories]) => [...categories, ['Other', () => true]].map(([name, rule]) => ({
+    key: `${slot}/${name}`, slot, name, label: `${slot} · ${name}`,
+    test: m => inSlot(m) && (rule instanceof RegExp ? rule.test(m.name) : rule(m))
+})));
+for (const m of MODULES) m.cat = PART_CATEGORIES.find(c => c.test(m)) || PART_CATEGORIES[PART_CATEGORIES.length - 1];
+const categoryRank = m => PART_CATEGORIES.indexOf(m.cat);
 const HARDPOINT_SIZE = { 1: 'Small', 2: 'Medium', 3: 'Large', 4: 'Huge' };
 const RATING_ORDER = 'ABCDEFGHI';
 // Spansh station type -> Ardent station type (STATION_TYPES). Source: EDDiscovery Spansh interface.
@@ -1463,14 +1502,14 @@ function fitsShip(m, slots) {
     return slots.internal.some(s => (Array.isArray(s) ? size <= s[0] && SLOT_RESTRICTIONS[s[1]].includes(m.name) : size <= s));
 }
 
-// Part types that fit the chosen ship: { name, group, min, max, modules }
+// Part types that fit the chosen ship: { name, cat, sizes, modules }
 function partTypes() {
     const { type } = outfitShip();
     const slots = shipSlots(type);
     const types = new Map();
     for (const m of MODULES) {
         if ((m.armour && !isArmourFor(m, type)) || !fitsShip(m, slots)) continue;
-        if (!types.has(m.name)) types.set(m.name, { name: m.name, group: (MODULE_GROUPS.find(([, inGroup]) => inGroup(m)) || ['Other'])[0], sizes: [], modules: [] });
+        if (!types.has(m.name)) types.set(m.name, { name: m.name, cat: m.cat, sizes: [], modules: [] });
         const part = types.get(m.name);
         part.sizes.push(Number(m.size));
         part.modules.push(m);
@@ -1478,23 +1517,62 @@ function partTypes() {
     return [...types.values()];
 }
 
-// Every word has to match the name, a search word or the group; "6a" or "6" picks the size (and rating) as well.
-function searchParts(query) {
+// Does the part belong to the category chosen above the search ("" = all, a slot group, or "slot group/category")?
+const inCategory = (part, key) => !key || part.cat.key === key || part.cat.slot === key;
+
+// Every word has to match the name, a search word or the category; "6a" or "6" picks the size (and rating) as well.
+// Hits come grouped by category: while browsing in the order of the game, while searching the category with the
+// best match first ("frame shift": the drive before the wake scanner). Parts found only through the category name
+// ("mining", "lasers") come last in their category.
+function searchParts(query, category = '') {
     const words = query.toLowerCase().split(/\s+/).filter(Boolean);
     const variant = words.find(w => /^[0-8][a-i]?$/.test(w)) || null;
     const terms = words.filter(w => w !== variant);
     const hits = [];
     for (const part of partTypes()) {
+        if (!inCategory(part, category)) continue;
         const aliases = PART_ALIASES[part.name] || '';
-        const text = `${part.name} ${aliases} ${part.group}`.toLowerCase();
+        const own = `${part.name} ${aliases}`.toLowerCase();
+        const text = `${own} ${part.cat.label.toLowerCase()}`;
         if (!terms.every(t => text.includes(t))) continue;
         if (variant && !part.modules.some(m => `${m.size}${m.rating}`.toLowerCase().startsWith(variant))) continue;
         const name = part.name.toLowerCase(), first = terms[0] || '';
-        const rank = !first ? 2 : name.startsWith(first) || aliases.split(' ').includes(first) ? 0 : ` ${name}`.includes(` ${first}`) ? 1 : 2;
+        const rank = !first ? 2 : !terms.every(t => own.includes(t)) ? 3
+            : name.startsWith(first) || aliases.split(' ').includes(first) ? 0 : ` ${name}`.includes(` ${first}`) ? 1 : 2;
         hits.push({ part, rank });
     }
-    hits.sort((a, b) => a.rank - b.rank || a.part.name.localeCompare(b.part.name));
+    const catIndex = part => categoryRank(part.modules[0]);
+    const groupAt = new Map();
+    if (terms.length) {
+        [...hits].sort((a, b) => a.rank - b.rank || a.part.name.length - b.part.name.length || catIndex(a.part) - catIndex(b.part))
+            .forEach(({ part }, i) => { if (!groupAt.has(part.cat)) groupAt.set(part.cat, i); });
+    } else {
+        hits.forEach(({ part }) => groupAt.set(part.cat, catIndex(part)));
+    }
+    const slotOrder = name => (name in CORE_SLOT ? CORE_SLOT[name] : 9);   // core parts in the order of their slots
+    hits.sort((a, b) => groupAt.get(a.part.cat) - groupAt.get(b.part.cat)
+        || a.rank - b.rank || slotOrder(a.part.name) - slotOrder(b.part.name) || a.part.name.localeCompare(b.part.name));
     return { variant, parts: hits.map(h => h.part) };
+}
+
+const categoryName = key => (PART_CATEGORIES.find(c => c.key === key) || { label: key }).label;
+const SLOT_ALL = { 'Hardpoints': 'All hardpoints', 'Utility mounts': 'All utility mounts', 'Core internal': 'All core internals', 'Optional internal': 'All optional internals' };
+
+// The category list next to the search: how many part types of each fit the chosen ship; empty categories are left out.
+function refreshOutfitCategories() {
+    const select = $('outfit-category');
+    const previous = select.value;
+    const types = partTypes();
+    const option = (key, label) => {
+        const n = types.filter(p => inCategory(p, key)).length;
+        return n || key === previous ? `<option value="${esc(key)}">${esc(label)} (${n})</option>` : '';
+    };
+    select.innerHTML = `<option value="">All parts (${types.length})</option>` + SLOT_GROUPS.map(([slot]) => {
+        const options = PART_CATEGORIES.filter(c => c.slot === slot).map(c => option(c.key, c.name)).join('');
+        return options ? `<optgroup label="${esc(slot)}">${option(slot, SLOT_ALL[slot])}${options}</optgroup>` : '';
+    }).join('');
+    select.value = previous;
+    if (select.value !== previous) select.value = '';
 }
 
 function sizeRange(part) {
@@ -1505,14 +1583,18 @@ function sizeRange(part) {
 
 function renderSuggestions() {
     const input = $('outfit-search'), list = $('outfit-suggest');
-    const { variant, parts } = searchParts(input.value);
-    suggestHits = parts.slice(0, 60);
+    const category = $('outfit-category').value;
+    // the field shows the part chosen before: list the whole category instead of that one part
+    const { variant, parts } = searchParts(input.value === outfitModule ? '' : input.value, category);
+    suggestHits = parts;
     suggestVariant = variant;
     if (suggestIndex >= suggestHits.length) suggestIndex = suggestHits.length - 1;
+    // a heading above the first part of each category
     list.innerHTML = suggestHits.length
-        ? suggestHits.map((p, i) => `<li role="option" id="outfit-option-${i}" data-part="${esc(p.name)}" aria-selected="${i === suggestIndex}">`
-            + `<span>${esc(p.name)}</span><span class="combo-meta">${esc(p.group)} · ${esc(sizeRange(p))}</span></li>`).join('')
-        : '<li class="combo-empty">No matching part fits this ship</li>';
+        ? suggestHits.map((p, i) => (i && suggestHits[i - 1].cat === p.cat ? '' : `<li class="combo-group" role="presentation">${esc(p.cat.label)}</li>`)
+            + `<li role="option" id="outfit-option-${i}" data-part="${esc(p.name)}" aria-selected="${i === suggestIndex}" aria-description="${esc(p.cat.label)}">`
+            + `<span>${esc(p.name)}</span><span class="combo-meta">${esc(sizeRange(p))}</span></li>`).join('')
+        : `<li class="combo-empty">No matching part${category ? ` in ${esc(categoryName(category))}` : ''} fits this ship</li>`;
     list.hidden = false;
     input.setAttribute('aria-expanded', 'true');
     if (suggestIndex >= 0) {
@@ -1545,6 +1627,7 @@ function refreshOutfitModules() {
         : ` · fitted modules from the journal${ship.loadoutAt ? ` (${timeAgo(ship.loadoutAt)})` : ''}`;
     const slots = shipSlots(type) ? '' : ' · slot sizes unknown for this ship, all sizes shown';
     $('outfit-ship-info').textContent = `Landing pad ${PAD_LABEL[shipPad(type)] || '?'}${known}${slots}`;
+    refreshOutfitCategories();
     refreshOutfitVariants();
     renderOutfitParts();
 }
@@ -1588,14 +1671,14 @@ function corePackage() {
     return parts.every(Boolean) ? parts : null;
 }
 
-// Everything on the list as modules, the package resolved for the chosen ship, each module once.
+// Everything on the list as modules, the package resolved for the chosen ship, each module once, by category.
 function outfitPartModules() {
     const modules = [];
     for (const entry of outfitParts) {
         const list = entry === CORE_PACKAGE ? corePackage() || [] : [MODULE_BY_SYMBOL.get(entry)];
         for (const m of list) if (m && !modules.includes(m)) modules.push(m);
     }
-    return modules;
+    return modules.sort((a, b) => categoryRank(a) - categoryRank(b));
 }
 
 function addCorePackage() {
@@ -1610,23 +1693,33 @@ function addCorePackage() {
 
 const shortPartLabel = m => partLabel(m).replace('Frame Shift Drive', 'FSD');
 
+// The list grouped by slot type, in the order of the game; the package counts as core internal.
 function renderOutfitParts() {
     const { type } = outfitShip();
     const slots = shipSlots(type);
+    const chip = symbol => {
+        if (symbol === CORE_PACKAGE) {
+            const parts = corePackage();
+            const label = esc(`Core package A: ${parts ? parts.map(shortPartLabel).join(' · ') : 'slot sizes of this ship unknown'}`);
+            const warning = parts ? '' : `<span class="part-warn" title="Slot sizes of the ${esc(shipLabel(type))} are unknown">⚠</span>`;
+            return `<span class="part-chip part-package${parts ? '' : ' no-fit'}">${warning}${label}<button type="button" data-remove-part="${CORE_PACKAGE}" aria-label="Remove the core package">×</button></span>`;
+        }
+        const m = MODULE_BY_SYMBOL.get(symbol);
+        const label = esc(partLabel(m));
+        const fits = fitsShip(m, slots) && (!m.armour || isArmourFor(m, type));
+        const warning = fits ? '' : `<span class="part-warn" title="Does not fit the ${esc(shipLabel(type))}">⚠</span>`;
+        return `<span class="part-chip${fits ? '' : ' no-fit'}">${warning}${label}<button type="button" data-remove-part="${esc(symbol)}" aria-label="Remove ${label}">×</button></span>`;
+    };
+    const packageRank = PART_CATEGORIES.findIndex(c => c.key === 'Core internal/Power & drives');
+    const rank = entry => (entry === CORE_PACKAGE ? packageRank : categoryRank(MODULE_BY_SYMBOL.get(entry)));
+    const groups = new Map();
+    for (const entry of [...outfitParts].sort((a, b) => rank(a) - rank(b))) {
+        const slot = PART_CATEGORIES[rank(entry)].slot;
+        if (!groups.has(slot)) groups.set(slot, []);
+        groups.get(slot).push(entry);
+    }
     $('outfit-parts').innerHTML = outfitParts.length
-        ? outfitParts.map(symbol => {
-            if (symbol === CORE_PACKAGE) {
-                const parts = corePackage();
-                const label = esc(`Core package A: ${parts ? parts.map(shortPartLabel).join(' · ') : 'slot sizes of this ship unknown'}`);
-                const warning = parts ? '' : `<span class="part-warn" title="Slot sizes of the ${esc(shipLabel(type))} are unknown">⚠</span>`;
-                return `<span class="part-chip part-package${parts ? '' : ' no-fit'}">${warning}${label}<button type="button" data-remove-part="${CORE_PACKAGE}" aria-label="Remove the core package">×</button></span>`;
-            }
-            const m = MODULE_BY_SYMBOL.get(symbol);
-            const label = esc(partLabel(m));
-            const fits = fitsShip(m, slots) && (!m.armour || isArmourFor(m, type));
-            const warning = fits ? '' : `<span class="part-warn" title="Does not fit the ${esc(shipLabel(type))}">⚠</span>`;
-            return `<span class="part-chip${fits ? '' : ' no-fit'}">${warning}${label}<button type="button" data-remove-part="${esc(symbol)}" aria-label="Remove ${label}">×</button></span>`;
-        }).join('')
+        ? [...groups].map(([slot, entries]) => `<div class="part-group"><span class="part-group-label">${esc(slot)}</span>${entries.map(chip).join('')}</div>`).join('')
         : '<span class="muted">No parts on the list yet: search a part above and add it.</span>';
 }
 
