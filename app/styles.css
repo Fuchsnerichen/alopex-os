@@ -224,6 +224,7 @@ input:focus, select:focus { border-color: var(--ed-border-focus); box-shadow: 0 
 .field-note:empty { display: none; }
 .part-list { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 16px; }
 .part-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 2px 2px 10px; border: 1px solid var(--ed-cyan); border-radius: 3px; background: var(--ed-cyan-dim); color: var(--ed-cyan); font-size: 0.85rem; }
+.part-chip.part-package { border-style: double; border-width: 3px; padding-left: 8px; }
 .part-chip.no-fit { border-color: var(--ed-red); color: var(--ed-red); background: color-mix(in srgb, var(--ed-red) 10%, transparent); }
 .part-warn { margin-right: 2px; }
 .combo { position: relative; }

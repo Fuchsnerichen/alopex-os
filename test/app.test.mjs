@@ -67,7 +67,10 @@ function stations(query) {
         station({ name: 'Near Dock', distance: 5, modules: [FSD_6A, MGC_SIDEWINDER], ships: [ANACONDA, COBRA] }),
         station({ name: 'Crater Works', type: 'Planetary Port', is_planetary: true, body_name: 'Near 1', distance: 7,
             modules: [FSD_6A, SCOOP_6A, MGC_ANACONDA], ships: [ANACONDA], shipyard_updated_at: new Date(Date.now() - 3 * 86400e3).toISOString() }),
-        station({ name: 'Far Station', system_name: 'Further', distance: 9, modules: [FSD_6A, SCOOP_6A, MGC_SIDEWINDER], ships: [COBRA] })
+        station({ name: 'Far Station', system_name: 'Further', distance: 9, modules: [FSD_6A, SCOOP_6A, MGC_SIDEWINDER], ships: [COBRA] }),
+        station({ name: 'Core Yard', system_name: 'Further', distance: 11, ships: [], modules: [
+            mod('Int_Engine_Size7_Class5', 'Thrusters', 7, 'A', 51289890), mod('Int_Powerplant_Size8_Class5', 'Power Plant', 8, 'A', 162586486),
+            mod('Int_Hyperdrive_Overcharge_Size6_Class5', 'Frame Shift Drive (SCO)', 6, 'A', 16179531), mod('Int_PowerDistributor_Size8_Class5', 'Power Distributor', 8, 'A', 25828146)] })
     ];
     return { count: all.length, size: query.size, page: query.page, results: query.page === 0 ? all : [] };
 }
@@ -448,6 +451,30 @@ test('outfitting: the station can also have to sell the ship', async () => {
     await win.click('[data-action="searchOutfit"]');
     await win.waitForFunction(() => document.querySelector('#outfit-results').textContent.includes('Add the parts you need'));
     await win.selectOption('#outfit-ship', 'fleet:7');
+});
+
+test('outfitting: the A-rated core package follows the chosen ship', async () => {
+    const chip = () => win.textContent('#outfit-parts .part-package');
+    await win.click('[data-action="addCorePackage"]');
+    assert.match(await chip(), /Core package A: 7A Thrusters · 8A Power Plant · 6A FSD \(SCO\) · 8A Power Distributor/);
+    await win.selectOption('#outfit-ship', 'type:cobramkiii');
+    assert.match(await chip(), /Core package A: 4A Thrusters · 4A Power Plant · 4A FSD \(SCO\) · 3A Power Distributor/);
+    await win.selectOption('#outfit-ship', 'type:mediumtransport01');
+    assert.match(await chip(), /slot sizes of this ship unknown/);
+    assert.equal(await win.$$eval('#outfit-parts .no-fit', chips => chips.length), 1);
+    await win.selectOption('#outfit-ship', 'fleet:7');
+    await win.click('[data-action="addCorePackage"]');
+    assert.equal(await win.$$eval('#outfit-parts .part-chip', chips => chips.length), 1, 'the package goes on the list once');
+
+    await win.click('[data-action="searchOutfit"]');
+    await win.waitForFunction(() => document.querySelector('#outfit-results').textContent.includes('Core Yard'));
+    assert.deepEqual(stationQueries.at(-1).filters.modules, { name: ['Power Plant'], class: ['8'], rating: ['A'] });
+    assert.deepEqual(await win.$$eval('#outfit-results .accordion-title', els => els.map(e => e.textContent)), ['Core Yard']);
+    const text = await win.$eval('#outfit-results', e => e.innerText);
+    assert.match(text, /255,884,053 CR\s+all parts/i);   // 51,289,890 + 162,586,486 + 16,179,531 + 25,828,146
+    assert.match(text, /✓ 6A Frame Shift Drive \(SCO\): 16,179,531 CR/i);
+    assert.deepEqual(JSON.parse(await win.evaluate(() => localStorage.getItem('alopex_outfit_parts'))), ['package:core-a']);
+    await win.click('[data-remove-part="package:core-a"]');
 });
 
 test('copy buttons write to the clipboard', async () => {

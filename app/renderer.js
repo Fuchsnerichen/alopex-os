@@ -575,6 +575,7 @@ const ACTIONS = {
     searchMining: btn => searchMiningHotspots(btn),
     searchExo: btn => searchExoRoutes(btn),
     addOutfitPart: () => addOutfitPart(),
+    addCorePackage: () => addCorePackage(),
     updateAction: () => updateAction(),
     closeUpdateNotice: () => { $('update-notice').hidden = true; },
     searchOutfit: btn => searchOutfitting(btn)
@@ -1413,6 +1414,11 @@ const PART_ALIASES = {
     'Heat Sink Launcher': 'heatsink', 'Point Defence': 'pd'
 };
 
+// The A-rated core package: one entry on the list that stands for these core parts in A,
+// each in the slot size of whichever ship is chosen.
+const CORE_PACKAGE = 'package:core-a';
+const CORE_PACKAGE_PARTS = ['Thrusters', 'Power Plant', 'Frame Shift Drive (SCO)', 'Power Distributor'];
+
 let outfitModule = null;    // part type chosen in the search field
 let suggestHits = [];       // part types shown in the suggestion list
 let suggestIndex = -1;      // highlighted suggestion
@@ -1547,11 +1553,53 @@ function refreshOutfitVariants(wanted) {
     $('outfit-fitted').textContent = fitted.length ? `Fitted on ${ship.name || shipLabel(ship.type)}: ${fitted.map(partLabel).join(', ')}` : '';
 }
 
+// The package's modules for the chosen ship. Slot sizes come from ship-slots.js, for a fleet ship without
+// slot data from the parts fitted now (journal); null when neither is known.
+function corePackage() {
+    const { type, ship } = outfitShip();
+    const slots = shipSlots(type);
+    const fitted = (ship && ship.modules || []).map(symbol => MODULE_BY_SYMBOL.get(symbol)).filter(Boolean);
+    const parts = CORE_PACKAGE_PARTS.map(name => {
+        const slot = CORE_SLOT[name];
+        const size = slots ? slots.core[slot] : (fitted.find(m => CORE_SLOT[m.name] === slot) || {}).size;
+        return size && MODULES.find(m => m.name === name && Number(m.size) === Number(size) && m.rating === 'A');
+    });
+    return parts.every(Boolean) ? parts : null;
+}
+
+// Everything on the list as modules, the package resolved for the chosen ship, each module once.
+function outfitPartModules() {
+    const modules = [];
+    for (const entry of outfitParts) {
+        const list = entry === CORE_PACKAGE ? corePackage() || [] : [MODULE_BY_SYMBOL.get(entry)];
+        for (const m of list) if (m && !modules.includes(m)) modules.push(m);
+    }
+    return modules;
+}
+
+function addCorePackage() {
+    if (outfitParts.includes(CORE_PACKAGE)) return showToast('The core package is already on the list', true);
+    if (!corePackage()) return showToast(`Slot sizes of the ${shipLabel(outfitShip().type)} are unknown: add the core parts one by one`, true);
+    if (outfitPartModules().length + CORE_PACKAGE_PARTS.length > OUTFIT_MAX_PARTS) return showToast(`At most ${OUTFIT_MAX_PARTS} parts per search`, true);
+    outfitParts.push(CORE_PACKAGE);
+    saveOutfitParts();
+    renderOutfitParts();
+    playTone('success');
+}
+
+const shortPartLabel = m => partLabel(m).replace('Frame Shift Drive', 'FSD');
+
 function renderOutfitParts() {
     const { type } = outfitShip();
     const slots = shipSlots(type);
     $('outfit-parts').innerHTML = outfitParts.length
         ? outfitParts.map(symbol => {
+            if (symbol === CORE_PACKAGE) {
+                const parts = corePackage();
+                const label = esc(`Core package A: ${parts ? parts.map(shortPartLabel).join(' · ') : 'slot sizes of this ship unknown'}`);
+                const warning = parts ? '' : `<span class="part-warn" title="Slot sizes of the ${esc(shipLabel(type))} are unknown">⚠</span>`;
+                return `<span class="part-chip part-package${parts ? '' : ' no-fit'}">${warning}${label}<button type="button" data-remove-part="${CORE_PACKAGE}" aria-label="Remove the core package">×</button></span>`;
+            }
             const m = MODULE_BY_SYMBOL.get(symbol);
             const label = esc(partLabel(m));
             const fits = fitsShip(m, slots) && (!m.armour || isArmourFor(m, type));
@@ -1568,7 +1616,7 @@ function saveOutfitParts() {
 function loadOutfitParts() {
     try {
         const saved = JSON.parse(localStorage.getItem('alopex_outfit_parts') || '[]');
-        if (Array.isArray(saved)) outfitParts = saved.filter(symbol => MODULE_BY_SYMBOL.has(symbol)).slice(0, OUTFIT_MAX_PARTS);
+        if (Array.isArray(saved)) outfitParts = saved.filter(entry => MODULE_BY_SYMBOL.has(entry) || entry === CORE_PACKAGE).slice(0, OUTFIT_MAX_PARTS);
     } catch (e) {}
     renderOutfitParts();
 }
@@ -1577,7 +1625,7 @@ function addOutfitPart() {
     const symbol = $('outfit-variant').value;
     if (!MODULE_BY_SYMBOL.has(symbol)) return showToast('Search a part and pick it from the list first', true);
     if (outfitParts.includes(symbol)) return showToast('This part is already on the list', true);
-    if (outfitParts.length >= OUTFIT_MAX_PARTS) return showToast(`At most ${OUTFIT_MAX_PARTS} parts per search`, true);
+    if (outfitPartModules().length >= OUTFIT_MAX_PARTS) return showToast(`At most ${OUTFIT_MAX_PARTS} parts per search`, true);
     outfitParts.push(symbol);
     saveOutfitParts();
     renderOutfitParts();
@@ -1677,7 +1725,10 @@ function outfitItem(i, { st, row, have, missing }, count, allLabel) {
 function searchOutfitting(btn) {
     return runSearch('outfit', btn, async progress => {
         const sys = requireSystem();
-        const parts = outfitParts.map(symbol => MODULE_BY_SYMBOL.get(symbol)).filter(Boolean);
+        if (outfitParts.includes(CORE_PACKAGE) && !corePackage()) {
+            return infoBox(`The core package needs the slot sizes of the ${esc(shipLabel(outfitShip().type))}, and they are unknown. Add the core parts one by one.`);
+        }
+        const parts = outfitPartModules();
         const { type } = outfitShip();
         const buyShip = $('outfit-buy-ship').checked;
         const shipNames = buyShip ? spanshShipNames(type) : [];
