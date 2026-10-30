@@ -15,6 +15,7 @@ const require = createRequire(import.meta.url);
 const { _electron } = require('playwright');
 const ELECTRON = require('electron');
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+const PKG = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 const JOURNAL_DIR = mkdtempSync(path.join(tmpdir(), 'alopex-journal-'));
 const USER_DATA = mkdtempSync(path.join(tmpdir(), 'alopex-userdata-'));
 const JOURNAL_FILE = path.join(JOURNAL_DIR, 'Journal.2026-10-26T100000.01.log');
@@ -118,9 +119,11 @@ before(async () => {
     await new Promise(r => server.listen(0, '127.0.0.1', r));
     const base = `http://127.0.0.1:${server.address().port}`;
     writeFileSync(JOURNAL_FILE, JOURNAL);
+    // the app last ran as 1.0.0 and had downloaded this version: the update notice must show
+    writeFileSync(path.join(USER_DATA, 'settings.json'), JSON.stringify({ lastVersion: '1.0.0', updateNotes: { version: PKG.version, notes: 'Frame shift intro' } }));
 
     env = { ...process.env, ELECTRON_ENABLE_LOGGING: '1', ALOPEX_USER_DATA: USER_DATA, ALOPEX_JOURNAL_DIR: JOURNAL_DIR, ALOPEX_TEST_CHOOSE_DIR: JOURNAL_DIR,
-        ALOPEX_ARDENT_API: `${base}/ardent/v2`, ALOPEX_SPANSH_API: `${base}/spansh/api`, ALOPEX_COMMODITY_CSV: `${base}/fdev/commodity.csv` };
+        ALOPEX_ARDENT_API: `${base}/ardent/v2`, ALOPEX_SPANSH_API: `${base}/spansh/api`, ALOPEX_COMMODITY_CSV: `${base}/fdev/commodity.csv`, ALOPEX_TEST_UPDATE: '9.9.9' };
     delete env.NODE_OPTIONS;
     app = await _electron.launch({ executablePath: ELECTRON, args: ARGS, env });
     app.process().stderr.on('data', d => stderr.push(String(d)));
@@ -144,6 +147,17 @@ test('the intro reports what the journal says, and a click skips it', async () =
     const pkg = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
     assert.equal(await win.textContent('.intro-ver'), `v${pkg.version} · by ${pkg.author}`);
 
+    // frame shift: stars on the canvas, then the flash as the fox arrives
+    await win.waitForSelector('#intro.flash', { timeout: 3000 });
+    const litPixels = await win.evaluate(() => {
+        const canvas = document.getElementById('intro-stars');
+        const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+        let lit = 0;
+        for (let i = 0; i < data.length; i += 4) if (data[i] + data[i + 1] + data[i + 2] > 300) lit++;
+        return lit;
+    });
+    assert.ok(litPixels > 100, `stars drawn (${litPixels} bright pixels)`);
+
     // clicked in the DOM directly: the intro may be about to end on its own
     const skipped = await win.evaluate(() => {
         const intro = document.getElementById('intro');
@@ -164,7 +178,7 @@ test('opens its own window with the app page and without errors', async () => {
     assert.equal(win.url(), 'app://alopex/index.html');
     assert.equal(await win.title(), 'ALOPEX OS // E.D. Master Navigator');
     assert.equal(await win.evaluate(() => typeof require + '/' + typeof process), 'undefined/undefined', 'no Node.js in the page');
-    assert.deepEqual(await win.evaluate(() => Object.keys(window.alopex)), ['ardent', 'spansh', 'commodityNames', 'journal', 'copy']);
+    assert.deepEqual(await win.evaluate(() => Object.keys(window.alopex)), ['ardent', 'spansh', 'commodityNames', 'journal', 'copy', 'updates']);
     assert.equal(stderr.join('').match(/Uncaught.*/)?.[0], undefined, 'no script errors');
     const pkg = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
     assert.equal(await win.$eval('.app-footer', e => e.textContent.trim()), `ALOPEX OS v${pkg.version} · by ${pkg.author}`);
@@ -177,6 +191,35 @@ test('opens its own window with the app page and without errors', async () => {
     assert.equal(await accent(), '#ff8c00');
     await win.selectOption('#theme-selector', 'default');
     assert.equal(await win.evaluate(() => document.documentElement.hasAttribute('data-theme')), false);
+});
+
+test('after an update the app says so; update check, download and install from the header button', async () => {
+    assert.equal(await win.isVisible('#update-notice'), true);
+    assert.equal(await win.textContent('#update-notice-title'), `✓ ALOPEX OS was updated to v${PKG.version}`);
+    assert.equal(await win.textContent('#update-notice-notes'), 'Frame shift intro');
+    await win.click('[data-action="closeUpdateNotice"]');
+    assert.equal(await win.isVisible('#update-notice'), false);
+    assert.equal(JSON.parse(readFileSync(path.join(USER_DATA, 'settings.json'), 'utf8')).lastVersion, PKG.version);
+
+    assert.equal(await win.textContent('#update-status'), `v${PKG.version}`);
+    assert.equal(await win.isVisible('#btn-update'), false, 'no header button while nothing is waiting');
+    await win.click('#update-action');   // Check now
+    await win.waitForSelector('#btn-update:not([hidden])');
+    assert.equal(await win.textContent('#btn-update'), '⬆ Update to v9.9.9');
+    assert.equal(await win.textContent('#update-status'), 'v9.9.9 is available');
+    await win.click('#btn-update');
+    await win.waitForFunction(() => document.getElementById('btn-update').textContent === '⟳ Restart to update');
+    assert.equal(await win.textContent('#update-status'), 'v9.9.9 is ready');
+    assert.deepEqual(JSON.parse(readFileSync(path.join(USER_DATA, 'settings.json'), 'utf8')).updateNotes, { version: '9.9.9', notes: 'Test release notes' });
+    await win.click('#btn-update');
+    await win.waitForFunction(() => document.getElementById('update-status').textContent === 'Installing v9.9.9…');
+    assert.equal(await win.isVisible('#btn-update'), false);
+
+    // the auto-update switch is kept by the app core
+    await win.check('#update-auto');
+    await win.waitForFunction(() => document.getElementById('update-status').textContent === 'Installing v9.9.9…' && document.getElementById('update-auto').checked);
+    await sleep(300);
+    assert.equal(JSON.parse(readFileSync(path.join(USER_DATA, 'settings.json'), 'utf8')).autoUpdate, true);
 });
 
 test('finds the journal folder by itself and loads the fleet', async () => {
@@ -476,6 +519,8 @@ test('with "Show intro" off, the next start goes straight to the app', async () 
     await win.waitForSelector('#journal-status.active', { timeout: 15000 });
     assert.equal(await win.isChecked('#intro-enabled'), false);
     assert.equal(await win.$('#intro'), null);
+    assert.equal(await win.isVisible('#update-notice'), false, 'the update notice shows only once');
+    assert.equal(await win.isChecked('#update-auto'), true);
     assert.equal(await win.inputValue('#theme-selector'), 'default', 'the old "imperial" is the default now');
     assert.equal(await win.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--ed-orange').trim()), '#00d0ff');
 });

@@ -10,6 +10,8 @@
     <!-- Start intro: the arctic fox (Alopex lagopus) and the ship computer reporting what the journal says.
          renderer.js (INTRO) runs it while the journal loads; a click or any key skips it. -->
     <div id="intro" class="intro" aria-hidden="true">
+        <canvas id="intro-stars" class="intro-stars"></canvas>
+        <div class="intro-flash"></div>
         <div class="intro-inner">
             <div class="intro-brand">
                 <svg id="intro-fox" class="intro-fox" viewBox="0 0 200 190"></svg>
@@ -48,9 +50,22 @@
                 <button id="btn-audio" class="btn-cyan btn-small" data-action="toggleAudio">🔊 SFX: ON</button>
                 <button id="btn-journal" class="btn-cyan btn-small" data-action="connectJournal" data-sound title="Choose a different journal folder">Select Folder</button>
                 <button id="btn-sync" class="btn-cyan btn-small" data-action="rescanJournal" data-sound>Re-scan Journal</button>
+                <button id="btn-update" class="btn-small btn-update" data-action="updateAction" data-sound hidden>⬆ Update</button>
             </div>
         </div>
     </header>
+
+    <!-- Shown once after ALOPEX OS updated itself (renderer.js, UPDATES). -->
+    <div id="update-notice" class="update-notice" role="status" hidden>
+        <div class="update-notice-head">
+            <strong id="update-notice-title">ALOPEX OS was updated</strong>
+            <button type="button" class="btn-small btn-quiet" data-action="closeUpdateNotice" aria-label="Close update notice">✕</button>
+        </div>
+        <details id="update-notice-details">
+            <summary>What's new</summary>
+            <div id="update-notice-notes" class="update-notice-notes"></div>
+        </details>
+    </div>
 
     <div class="global-inputs">
         <div class="input-group">
@@ -94,6 +109,14 @@
         <div class="input-group">
             <label for="intro-enabled">STARTUP</label>
             <label class="checkbox-row"><input type="checkbox" id="intro-enabled" checked> Show intro</label>
+        </div>
+        <div class="input-group">
+            <label for="update-auto">UPDATES</label>
+            <label class="checkbox-row"><input type="checkbox" id="update-auto"> Install updates automatically</label>
+            <div class="update-line">
+                <span id="update-status">—</span>
+                <button type="button" id="update-action" class="btn-cyan btn-small" data-action="updateAction" hidden>Check now</button>
+            </div>
         </div>
     </div>
 

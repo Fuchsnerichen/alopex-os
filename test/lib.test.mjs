@@ -9,6 +9,7 @@ import { createArdentClient } from '../lib/ardent.mjs';
 import { createSpanshClient } from '../lib/spansh.mjs';
 import { loadCommodityNames, parseCommodityCsv } from '../lib/commodities.mjs';
 import { listJournals, readJournal, defaultJournalFolder } from '../lib/journal.mjs';
+import { createUpdates, createFakeUpdater, plainText, isNewer, RELEASES_URL } from '../lib/updates.mjs';
 
 // Fake fetch that records requests and answers with the given function.
 function fakeFetch(answer) {
@@ -140,4 +141,82 @@ test('Journal: only Journal.*.log files, sorted old to new, read from an offset'
         await assert.rejects(readJournal(dir, bad, 0), /Invalid journal file name/, bad);
     }
     assert.match(defaultJournalFolder('C:\\Users\\cmdr'), /Saved Games.Frontier Developments.Elite Dangerous$/);
+});
+
+// ---------- updates ----------
+function memorySettings(initial = {}) {
+    let data = { ...initial };
+    return { data: () => data, read: async () => ({ ...data }), write: async patch => { data = { ...data, ...patch }; } };
+}
+async function until(check) {
+    for (let i = 0; i < 50; i++) { if (await check()) return; await new Promise(r => setTimeout(r, 50)); }
+    throw new Error('timed out');
+}
+
+test('Updates: notice after an update, then check, download and install', async () => {
+    const settings = memorySettings({ lastVersion: '1.0.9', updateNotes: { version: '1.0.10', notes: 'New intro' } });
+    const updater = createFakeUpdater('1.0.11');
+    const seen = [];
+    const updates = createUpdates({ updater, version: '1.0.10', settings, openExternal: () => assert.fail('no browser'), onChange: s => seen.push(s.status) });
+
+    const start = await updates.state();
+    assert.deepEqual(start.justUpdated, { from: '1.0.9', to: '1.0.10', notes: 'New intro' });
+    assert.equal(start.status, 'idle');
+    assert.equal(settings.data().lastVersion, '1.0.10');
+    assert.equal(settings.data().updateNotes, null, 'the notice shows once');
+
+    assert.equal((await updates.check()).status, 'available');
+    assert.equal((await updates.state()).notes, 'Test release notes');
+    assert.equal((await updates.download()).status, 'ready');
+    assert.ok(seen.includes('downloading'));
+    assert.deepEqual(settings.data().updateNotes, { version: '1.0.11', notes: 'Test release notes' }, 'kept for the notice after the restart');
+    assert.equal((await updates.check()).status, 'ready', 'no new check while an update waits');
+    assert.equal(updates.install().status, 'installing');
+    assert.deepEqual(updater.installCalls, [[true, true]], 'silent install, then start the new version');
+
+    const again = createUpdates({ updater: createFakeUpdater('1.0.11'), version: '1.0.10', settings, openExternal: () => {} });
+    assert.equal((await again.state()).justUpdated, null, 'same version: no notice');
+});
+
+test('Updates: auto-update downloads by itself; the portable app opens the release page', async () => {
+    const settings = memorySettings({ lastVersion: '1.0.10' });
+    const updates = createUpdates({ updater: createFakeUpdater('1.0.11'), version: '1.0.10', settings, openExternal: () => {} });
+    assert.equal((await updates.state()).auto, false, 'off unless switched on');
+    await updates.check();
+    assert.equal((await updates.state()).status, 'available');
+    await updates.setAuto(true);
+    assert.equal(settings.data().autoUpdate, true);
+    await until(async () => (await updates.state()).status === 'ready');
+
+    const auto = createUpdates({ updater: createFakeUpdater('1.0.11'), version: '1.0.10', settings, openExternal: () => {} });
+    await auto.check();
+    await until(async () => (await auto.state()).status === 'ready');
+
+    const opened = [];
+    const portable = createUpdates({ updater: createFakeUpdater('1.0.11'), version: '1.0.10', portable: true,
+        settings: memorySettings({ autoUpdate: true }), openExternal: url => opened.push(url) });
+    await portable.check();
+    await new Promise(r => setTimeout(r, 400));
+    assert.equal((await portable.state()).status, 'available', 'nothing downloads by itself');
+    await portable.download();
+    assert.deepEqual(opened, [RELEASES_URL]);
+});
+
+test('Updates: errors in plain words; no release yet counts as up to date', async () => {
+    const failing = message => {
+        const updater = createFakeUpdater('9.9.9');
+        updater.checkForUpdates = async () => { throw new Error(message); };
+        return createUpdates({ updater, version: '1.0.10', settings: memorySettings(), openExternal: () => {} });
+    };
+    assert.equal((await failing('No published versions on GitHub').check()).status, 'none');
+    const offline = await failing('net::ERR_INTERNET_DISCONNECTED').check();
+    assert.deepEqual([offline.status, offline.error], ['error', 'update server not reachable – are you online?']);
+    const none = createUpdates({ updater: null, version: '1.0.10', settings: memorySettings(), openExternal: () => {} });
+    assert.equal((await none.check()).status, 'disabled');
+
+    assert.equal(isNewer('1.0.10', '1.0.9'), true);
+    assert.equal(isNewer('1.0.9', '1.0.10'), false);
+    assert.equal(isNewer('1.0.10', '1.0.10'), false);
+    assert.equal(plainText('<p>A &amp; B</p><ul><li>one</li><li>two <script>x</script></li></ul>'), 'A & B\n• one\n• two x');
+    assert.equal(plainText([{ version: '1.0.11', note: '<b>new</b>' }]), 'new');
 });

@@ -4,7 +4,8 @@
 // internet or file access: market data, Spansh searches, commodity names and the journal go through
 // the small bridge in preload.cjs to the functions below, which check every request.
 
-import { app, BrowserWindow, ipcMain, protocol, net, session, dialog, clipboard, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, protocol, net, session, dialog, clipboard, Menu, shell } from 'electron';
+import electronUpdater from 'electron-updater';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,6 +13,7 @@ import { createArdentClient } from './lib/ardent.mjs';
 import { createSpanshClient } from './lib/spansh.mjs';
 import { loadCommodityNames } from './lib/commodities.mjs';
 import { defaultJournalFolder, isFolder, listJournals, readJournal } from './lib/journal.mjs';
+import { createUpdates, createFakeUpdater } from './lib/updates.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const APP_DIR = path.join(ROOT, 'app');
@@ -66,6 +68,7 @@ if (!app.requestSingleInstanceLock()) {
     app.whenReady().then(() => {
         Menu.setApplicationMenu(null);
         hardenSession(session.fromPartition(PARTITION));
+        setupUpdates();
         registerBridge();
         createWindow();
     });
@@ -147,6 +150,38 @@ async function readSettings() {
     try { return JSON.parse(await fs.readFile(settingsFile(), 'utf8')); } catch (e) { return {}; }
 }
 
+// One write after the other, so the journal folder and the update values never overwrite each other.
+let settingsQueue = Promise.resolve();
+function writeSettings(patch) {
+    settingsQueue = settingsQueue
+        .then(async () => fs.writeFile(settingsFile(), JSON.stringify({ ...(await readSettings()), ...patch })))
+        .catch(() => {});
+    return settingsQueue;
+}
+
+// ---------- Updates (lib/updates.mjs) ----------
+
+let updates = null;
+function setupUpdates() {
+    const fakeVersion = testEnv('ALOPEX_TEST_UPDATE');
+    let updater = null;
+    if (fakeVersion) {
+        updater = createFakeUpdater(fakeVersion);
+    } else if (app.isPackaged && process.platform === 'win32') {
+        updater = electronUpdater.autoUpdater;   // reads the release source from resources/app-update.yml
+        updater.logger = null;
+    }
+    updates = createUpdates({
+        updater,
+        version: app.getVersion(),
+        portable: Boolean(process.env.PORTABLE_EXECUTABLE_FILE),
+        settings: { read: readSettings, write: writeSettings },
+        openExternal: url => shell.openExternal(url),
+        onChange: state => BrowserWindow.getAllWindows().forEach(win => win.webContents.send('updates:changed', state))
+    });
+    if (!fakeVersion) updates.schedule();
+}
+
 async function findJournalFolder() {
     const candidates = [testEnv('ALOPEX_JOURNAL_DIR'), (await readSettings()).journalFolder, defaultJournalFolder()];
     for (const dir of candidates) if (dir && await isFolder(dir)) return dir;
@@ -166,7 +201,7 @@ async function chooseJournalFolder(event) {
     }
     if (!await isFolder(folder)) throw new Error('Not a folder');
     journalFolder = folder;
-    await fs.writeFile(settingsFile(), JSON.stringify({ ...(await readSettings()), journalFolder: folder })).catch(() => {});
+    await writeSettings({ journalFolder: folder });
     return folder;
 }
 
@@ -200,6 +235,11 @@ function registerBridge() {
     handle('journal:choose', async event => ok(await chooseJournalFolder(event)));
     handle('journal:list', async () => ok((await listJournals(requireJournalFolder())).map(name => ({ name }))));
     handle('journal:read', async (event, name, offset) => ok(await readJournal(requireJournalFolder(), name, offset)));
+    handle('updates:state', async () => ok(await updates.state()));
+    handle('updates:check', async () => ok(await updates.check()));
+    handle('updates:download', async () => ok(await updates.download()));
+    handle('updates:install', async () => ok(updates.install()));
+    handle('updates:auto', async (event, on) => ok(await updates.setAuto(on === true)));
     ipcMain.on('clipboard:write', (event, text) => {
         if (fromApp(event)) clipboard.writeText(String(text).slice(0, 500));
     });
