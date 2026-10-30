@@ -75,10 +75,17 @@ function stations(query) {
     return { count: all.length, size: query.size, page: query.page, results: query.page === 0 ? all : [] };
 }
 
+const ringQueries = [];
 function spansh(type, query) {
     if (type === 'stations') return stations(query);
-    if (query.filters?.ring_signals) return { count: 1, results: [{ name: 'HIP 21991 3', system_name: 'HIP 21991', distance: 23.4, distance_to_arrival: 1200,
-        rings: [{ name: 'HIP 21991 3 A Ring', type: 'Icy', signals: [{ name: 'Low Temperature Diamonds', count: 2 }] }] }] };
+    if (query.filters?.ring_signals) {
+        ringQueries.push(query);
+        return { count: 2, results: [
+            { name: 'HIP 21991 3', system_name: 'HIP 21991', distance: 23.4, distance_to_arrival: 1200, reserve_level: 'Pristine',
+                rings: [{ name: 'HIP 21991 3 A Ring', type: 'Icy', signals: [{ name: 'Low Temperature Diamonds', count: 2 }] }] },
+            { name: 'Col 285 2', system_name: 'Col 285', distance: 30.1, distance_to_arrival: 800, reserve_level: 'LowResources',
+                rings: [{ name: 'Col 285 2 A Ring', type: 'Icy', signals: [{ name: 'Low Temperature Diamonds', count: 1 }] }] }] };
+    }
     return { count: 1, results: [{ name: 'Synuefe AB 1 a', system_name: 'Synuefe AB', distance: 80.2, gravity: 0.3,
         landmarks: [{ type: 'Stratum', subtype: 'Stratum Tectonicas' }] }] };
 }
@@ -305,6 +312,29 @@ test('"Include planetary stations" hides planetary markets and is remembered', a
     await win.click('[data-action="searchTrade"]');
     await win.waitForSelector('#trade-results .accordion-item');
     assert.match(await win.$eval('#trade-results', e => e.innerText), /Ohm City/i);
+});
+
+test('mining: only rings with the chosen reserve levels', async () => {
+    await win.click('[data-tab="mining"]');
+    const results = () => win.$eval('#mining-results', e => e.innerText);
+    assert.match(await results(), /Col 285 2 A Ring[\s\S]*\| Low/i, 'all levels: both rings, with their reserve level');
+
+    await win.uncheck('#reserve-low');
+    await win.click('[data-action="searchMining"]');
+    await win.waitForFunction(() => document.querySelector('#mining-results .accordion-item') && !document.querySelector('#mining-results').textContent.includes('Col 285'));
+    assert.match(await results(), /HIP 21991 3 A Ring[\s\S]*\| Pristine/i);
+    assert.equal(ringQueries.at(-1).size, 50, 'more bodies from Spansh while filtering');
+
+    for (const level of ['pristine', 'major', 'common']) await win.uncheck(`#reserve-${level}`);
+    await win.click('[data-action="searchMining"]');
+    await win.waitForFunction(() => document.querySelector('#mining-results').textContent.includes('reserve level Depleted'));
+
+    for (const level of ['pristine', 'major', 'common', 'low']) await win.check(`#reserve-${level}`);
+    assert.equal(await win.evaluate(() => localStorage.getItem('ed_nav_reserve-low')), 'true');
+    await win.click('[data-action="searchMining"]');
+    // the same query as the first mining search: answered from the app core's cache
+    await win.waitForFunction(() => document.querySelector('#mining-results').textContent.includes('Col 285'));
+    assert.match(await results(), /HIP 21991 3 A Ring[\s\S]*Col 285 2 A Ring/i);
 });
 
 test('exobiology via Spansh', async () => {
