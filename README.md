@@ -36,6 +36,8 @@ mit einem kostenpflichtigen Zertifikat signiert ist. *Weitere Informationen* →
   nicht geflogen bist, behalten so ihre Daten. Verkaufte Schiffe verschwinden aus der Liste.
 - **Stationen:** Unter *Stations* lassen sich Fleet Carrier und Planetenstationen in allen Stationssuchen
   ein- oder ausblenden. Bei jeder Station zeigt die App, ob sie auf einem Planeten liegt oder im All.
+- **Mining:** Unter *Reserve level* wählst du, welche Ringe in Frage kommen (Pristine, Major, Common, Low,
+  Depleted). Ringe ohne bekannte Reserve-Stufe fallen dann heraus; die Stufe steht bei jedem Ergebnis dabei.
 - **Outfitting:** Schiff wählen (aus der Flotte oder einen Schiffstyp), die gewünschten Teile auf die Liste
   setzen, suchen. Teile findest du per Texteingabe, auch mit Kürzeln wie *FSD*, *SCB*, *HRP* oder gleich mit
   Größe (*6A scoop*). Angeboten werden nur Größen, die in einen Steckplatz des gewählten Schiffs passen; Teile

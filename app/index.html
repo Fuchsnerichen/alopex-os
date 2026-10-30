@@ -198,6 +198,16 @@
                 <label for="mine-radius">SEARCH RADIUS (LY)</label>
                 <input type="number" id="mine-radius" value="50" min="1" max="500">
             </div>
+            <div class="input-group" role="group" aria-labelledby="reserve-label">
+                <label id="reserve-label">RESERVE LEVEL</label>
+                <div class="reserve-levels">
+                    <label class="checkbox-row"><input type="checkbox" id="reserve-pristine" checked> Pristine</label>
+                    <label class="checkbox-row"><input type="checkbox" id="reserve-major" checked> Major</label>
+                    <label class="checkbox-row"><input type="checkbox" id="reserve-common" checked> Common</label>
+                    <label class="checkbox-row"><input type="checkbox" id="reserve-low" checked> Low</label>
+                    <label class="checkbox-row"><input type="checkbox" id="reserve-depleted" checked> Depleted</label>
+                </div>
+            </div>
             <div class="input-group">
                 <label for="current-cargo">CURRENT CARGO (TONS)</label>
                 <input type="number" id="current-cargo" value="128" min="0" placeholder="For demand check">

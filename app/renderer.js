@@ -432,7 +432,7 @@ function setVals(jump, cargo, pax, pad, cargoNow) {
 // ==========================================
 // PREFS & THEME
 // ==========================================
-const inputsToSave = ['theme-selector', 'current-system', 'jump-range', 'pad-size', 'include-carriers', 'include-planetary', 'cargo-space', 'max-trade-dist', 'price-age', 'passenger-space', 'passenger-type', 'mine-resource', 'mine-radius', 'current-cargo', 'sell-radius', 'exo-target', 'exo-radius', 'outfit-radius', 'outfit-buy-ship', 'intro-enabled'];
+const inputsToSave = ['theme-selector', 'current-system', 'jump-range', 'pad-size', 'include-carriers', 'include-planetary', 'cargo-space', 'max-trade-dist', 'price-age', 'passenger-space', 'passenger-type', 'mine-resource', 'mine-radius', 'reserve-pristine', 'reserve-major', 'reserve-common', 'reserve-low', 'reserve-depleted', 'current-cargo', 'sell-radius', 'exo-target', 'exo-radius', 'outfit-radius', 'outfit-buy-ship', 'intro-enabled'];
 
 function savePrefs() {
     try {
@@ -1162,45 +1162,66 @@ function normalizeSignals(signals) {
     return Object.entries(obj).filter(([, v]) => typeof v === 'number').map(([name, count]) => ({ name, count }));
 }
 
+// Reserve level of a body's rings as Spansh and the journal write it ("Pristine", "PristineResources").
+const RESERVE_LEVELS = ['Pristine', 'Major', 'Common', 'Low', 'Depleted'];
+const reserveLevel = body => {
+    const level = String(body.reserve_level || '').replace(/resources$/i, '').toLowerCase();
+    return RESERVE_LEVELS.find(l => l.toLowerCase() === level) || null;
+};
+const MINING_RESULTS = 10;
+
 function searchMiningHotspots(btn) {
     return runSearch('mining', btn, async progress => {
         const sys = requireSystem();
         const resource = $('mine-resource').value;
         const radius = numInput('mine-radius', 50, 1, 500);
-        progress('QUERYING SPANSH RING DATABASE...');
-        const data = await spanshSearch('bodies', {
-            filters: {
-                distance: { min: 0, max: radius },
-                ring_signals: [{ comparison: '<=>', count: [1, 9999], name: [resource] }]
-            },
-            reference_system: sys,
-            sort: [{ distance: { direction: 'asc' } }],
-            size: 10,
-            page: 0
-        });
+        const levels = RESERVE_LEVELS.filter(l => $(`reserve-${l.toLowerCase()}`).checked);
+        if (!levels.length) return infoBox('Tick at least one reserve level.');
+        // With a reserve level filter the app sorts out the rings itself, so it asks Spansh for more bodies.
+        const filtering = levels.length < RESERVE_LEVELS.length;
+        const size = filtering ? 50 : MINING_RESULTS, pages = filtering ? 3 : 1;
 
         const rings = [];
-        for (const body of (data && data.results) || []) {
-            for (const ring of body.rings || []) {
-                const signals = normalizeSignals(ring.signals);
-                const hit = signals.find(s => String(s.name).toLowerCase() === resource.toLowerCase());
-                if (hit) rings.push({ body, ring, count: hit.count, others: signals.filter(s => s !== hit) });
+        for (let page = 0; page < pages && rings.length < MINING_RESULTS; page++) {
+            progress(page ? `CHECKING MORE RINGS... PAGE ${page + 1}` : 'QUERYING SPANSH RING DATABASE...');
+            const data = await spanshSearch('bodies', {
+                filters: {
+                    distance: { min: 0, max: radius },
+                    ring_signals: [{ comparison: '<=>', count: [1, 9999], name: [resource] }]
+                },
+                reference_system: sys,
+                sort: [{ distance: { direction: 'asc' } }],
+                size,
+                page
+            });
+            const bodies = (data && data.results) || [];
+            for (const body of bodies) {
+                if (filtering && !levels.includes(reserveLevel(body))) continue;
+                for (const ring of body.rings || []) {
+                    const signals = normalizeSignals(ring.signals);
+                    const hit = signals.find(s => String(s.name).toLowerCase() === resource.toLowerCase());
+                    if (hit) rings.push({ body, ring, count: hit.count, others: signals.filter(s => s !== hit) });
+                }
             }
+            if (bodies.length < size) break;
         }
+        rings.splice(MINING_RESULTS);
         if (!rings.length) {
-            return infoBox(`No ring with a mapped <strong>${esc(resource)}</strong> hotspot within ${fmtInt(radius)} LY of ${esc(sys)} in the Spansh database. Increase the radius – hotspots are only known where commanders have mapped the ring.`);
+            const reserve = filtering ? ` and reserve level ${levels.join(' / ')}` : '';
+            return infoBox(`No ring with a mapped <strong>${esc(resource)}</strong> hotspot${reserve} within ${fmtInt(radius)} LY of ${esc(sys)} in the Spansh database. Increase the radius${filtering ? ' or allow more reserve levels' : ''} – hotspots are only known where commanders have mapped the ring.`);
         }
 
         return rings.map(({ body, ring, count, others }, i) => {
             const targetId = `mining-station-${i}`;
             const details = [
                 `<li>◈ Ring type: ${esc(ring.type || 'unknown')}</li>`,
-                body.reserve_level ? `<li>◈ Reserve level: ${esc(body.reserve_level)}</li>` : '',
+                `<li>◈ Reserve level: ${esc(reserveLevel(body) || 'unknown')}</li>`,
                 others.length ? `<li>◈ Other hotspots in this ring: ${others.map(o => `${esc(o.name)} ×${o.count}`).join(', ')}</li>` : ''
             ].join('');
             return accordionItem(i, {
                 title: esc(ring.name || body.name),
-                meta: `${esc(body.system_name)} | ${fmtLy(body.distance)} LY${jumpsText(body.distance)}${body.distance_to_arrival ? ` | ${fmtInt(body.distance_to_arrival)} Ls` : ''}`,
+                meta: `${esc(body.system_name)} | ${fmtLy(body.distance)} LY${jumpsText(body.distance)}${body.distance_to_arrival ? ` | ${fmtInt(body.distance_to_arrival)} Ls` : ''}`
+                    + ` | ${esc(reserveLevel(body) || 'reserve unknown')}`,
                 stat: `${count}× ${esc(resource)}`,
                 statLabel: 'Hotspots in ring',
                 body: `<ul class="detail-list">${details}</ul>
