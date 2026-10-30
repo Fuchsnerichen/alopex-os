@@ -44,9 +44,11 @@ mit einem kostenpflichtigen Zertifikat signiert ist. *Weitere Informationen* →
   Optional internal, darin z. B. *Lasers*, *Mining tools*, *Shields & hull*): Unter *Category* eine Kategorie
   wählen, um ihre Teile durchzublättern, oder den Kategorienamen eintippen (*mining*). Angeboten werden nur
   Größen, die in einen Steckplatz des gewählten Schiffs passen; Teile auf der Liste, die nicht passen, sind rot
-  markiert. Das gilt auch für Spezial-Steckplätze, etwa die vier Mining-Hardpoints der Type-11 Prospector.
-  Teile, die nur ein Schiff nehmen kann (z. B. Mining Volley Repeater und Mk II Mining Multi-Limpet Controller
-  der Type-11), haben einen ★ und unter *Category* einen eigenen Eintrag; *mk2* findet alle Mk-II-Teile. *A-rated core package* setzt Thrusters, Power Plant, Frame Shift Drive (SCO)
+  markiert. Schiffe mit Spezial-Plätzen (Military-Plätze, Mining-Hardpoints der Type-11 Prospector, Cargo-Plätze
+  der Panther Clipper Mk II …) oder eigenen Teilen haben in der Schiffsauswahl einen ★, darunter steht, welche
+  Plätze es sind. In der Teileliste kommt die Kategorie *★ Special* zuerst, getrennt nach Art des Platzes und
+  „Only for this ship“ (z. B. Mining Volley Repeater und Mk II Mining Multi-Limpet Controller der Type-11).
+  Dieselben Teile stehen auch in ihrer normalen Kategorie, dort mit ★ gekennzeichnet. *mk2* findet alle Mk-II-Teile. *A-rated core package* setzt Thrusters, Power Plant, Frame Shift Drive (SCO)
   und Power Distributor in A auf die Liste, jeweils in der Größe, die das gewählte Schiff nimmt; wechselst du das
   Schiff, passt sich das Paket an. Die App zeigt die nächsten Stationen, die *alle* Teile verkaufen, mit Preisen. Bei Schiffen
   aus der Flotte steht dabei, was gerade eingebaut ist.

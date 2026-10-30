@@ -231,7 +231,7 @@ input:focus, select:focus { border-color: var(--ed-border-focus); box-shadow: 0 
 .part-warn { margin-right: 2px; }
 .combo { position: relative; }
 .combo input { width: 100%; }
-.combo-list { position: absolute; z-index: 50; left: 0; top: calc(100% + 2px); min-width: 100%; width: max-content; max-width: min(520px, calc(100vw - 40px)); max-height: 300px; overflow-y: auto; margin: 0; padding: 4px 0; list-style: none;
+.combo-list { position: absolute; z-index: 50; left: 0; top: calc(100% + 2px); min-width: 100%; width: max-content; max-width: min(640px, calc(100vw - 40px)); max-height: 300px; overflow-y: auto; overflow-x: hidden; margin: 0; padding: 4px 0; list-style: none;
     background: var(--ed-panel); border: 1px solid var(--ed-orange); border-radius: 3px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); }
 .combo-list li { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; white-space: nowrap; padding: 6px 10px; cursor: pointer; color: var(--ed-cyan); font-size: 0.9rem; }
 .combo-list li[aria-selected="true"], .combo-list li[data-part]:hover { background: var(--ed-orange-dim); color: var(--ed-orange); }
@@ -242,6 +242,7 @@ input:focus, select:focus { border-color: var(--ed-border-focus); box-shadow: 0 
 .combo-list .combo-group { position: sticky; top: -4px; z-index: 1; cursor: default; padding: 6px 10px 4px; background: var(--ed-panel); border-bottom: 1px solid var(--ed-border);
     font-size: 0.72rem; letter-spacing: 1px; text-transform: uppercase; color: var(--ed-orange); }
 .combo-list li[role="option"] { scroll-margin-top: 30px; }
+.combo-list li[role="option"] > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .part-chip button { min-height: 0; padding: 2px 8px; border: none; background: transparent; color: inherit; font-size: 1rem; line-height: 1; }
 .part-chip button:hover { background: var(--ed-red); color: var(--ed-bg); box-shadow: none; }
 .detail-list .part-missing { color: var(--ed-red); }

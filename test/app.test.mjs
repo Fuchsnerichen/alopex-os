@@ -514,11 +514,11 @@ test('outfitting: parts sorted into categories', async () => {
     const listed = () => win.$$eval('#outfit-suggest [data-part]', els => els.map(e => e.dataset.part));
     // the category list: slot groups in the order of the game, with the number of parts that fit the ship
     assert.deepEqual(await win.$$eval('#outfit-category optgroup', groups => groups.map(g => g.label)),
-        ['Hardpoints', 'Utility mounts', 'Core internal', 'Optional internal']);
+        ['★ Special', 'Hardpoints', 'Utility mounts', 'Core internal', 'Optional internal']);
     const options = await win.$$eval('#outfit-category option', els => els.map(e => e.textContent));
     assert.match(options[0], /^All parts \(\d+\)$/);
     assert.ok(options.includes('All hardpoints (44)') && options.some(o => /^Lasers \(\d+\)$/.test(o)), options.join());   // all but the Type-11's mining tool
-    assert.ok(!options.some(o => o.startsWith('★')), 'no parts made only for the Anaconda');
+    assert.ok(options.some(o => /^★ Military slot \(\d+\)$/.test(o)) && !options.some(o => /^★ Only for/.test(o)), 'the Anaconda has one military slot, no parts of its own');
     const anaconda = parseInt(options[0].match(/\d+/)[0], 10);
     await win.selectOption('#outfit-ship', 'type:sidewinder');
     const sidewinder = parseInt((await win.textContent('#outfit-category option')).match(/\d+/)[0], 10);
@@ -551,7 +551,7 @@ test('outfitting: parts sorted into categories', async () => {
     // with a part chosen the list shows everything again, in the order of the game; Enter keeps the part
     await win.click('#outfit-radius');
     await win.click('#outfit-search');
-    assert.equal((await headings())[0], 'Hardpoints · Anti-Xeno & Guardian');
+    assert.deepEqual((await headings()).slice(0, 2), ['★ Special · Military slot', 'Hardpoints · Anti-Xeno & Guardian']);
     await win.keyboard.press('Enter');
     assert.equal(await win.inputValue('#outfit-search'), 'Frame Shift Drive');
     await win.click('[data-action="addOutfitPart"]');
@@ -561,31 +561,64 @@ test('outfitting: parts sorted into categories', async () => {
     while (await win.$('#outfit-parts [data-remove-part]')) await win.click('#outfit-parts [data-remove-part]');
 });
 
-test('outfitting: parts made for one ship and its special slots (Type-11 Prospector)', async () => {
+test('outfitting: special slots and parts made for one ship come first and are starred', async () => {
+    const headings = () => win.$$eval('#outfit-suggest .combo-group', els => els.map(e => e.textContent));
     const listed = () => win.$$eval('#outfit-suggest [data-part]', els => els.map(e => e.dataset.part));
+    // a part in its own category, with its star note
+    const note = name => win.$$eval('#outfit-suggest [role="option"]', (els, n) => els.filter(e => e.dataset.part === n)
+        .map(e => e.querySelector('.part-special')).filter(Boolean).map(e => e.textContent).join(), name);
+    // a star behind every ship with special slots or parts of its own
+    const shipOption = value => win.$eval(`#outfit-ship option[value="${value}"]`, o => o.textContent);
+    assert.equal(await shipOption('type:lakonminer'), 'Type-11 Prospector ★');
+    assert.equal(await shipOption('type:federation_gunship'), 'Federal Gunship ★');
+    assert.equal(await shipOption('type:sidewinder'), 'Sidewinder');
+    assert.match(await shipOption('fleet:7'), /\(Anaconda\) ★$/);
+
     await win.selectOption('#outfit-ship', 'type:lakonminer');
-    assert.match(await win.textContent('#outfit-ship-info'), /★ only for this ship: Mining Volley Repeater, Mk II Mining Multi-Limpet Controller/);
-    // its own entry in the category list, starred in the suggestions
+    assert.match(await win.textContent('#outfit-ship-info'), new RegExp('★ Special slots: 4 mining hardpoints \\(sizes 3, 2, 1\\), '
+        + '1 limpet controller slot \\(size 5\\), 1 hangar slot \\(size 5\\) · ★ Only for this ship: Mining Volley Repeater, Mk II Mining Multi-Limpet Controller'));
+    // the ★ Special categories head the category list
+    const options = await win.$$eval('#outfit-category option', els => els.map(e => e.textContent));
+    assert.deepEqual(options.slice(1, 6).map(o => o.replace(/ \(\d+\)$/, '')),
+        ['★ All special parts', '★ Only for the Type-11 Prospector', '★ Mining hardpoints', '★ Limpet controller slot', '★ Hangar slot']);
     await win.selectOption('#outfit-category', 'special');
     await win.waitForSelector('#outfit-suggest:not([hidden]) [data-part]');
+    assert.deepEqual(await headings(), ['★ Special · Only for the Type-11 Prospector', '★ Special · Mining hardpoints',
+        '★ Special · Limpet controller slot', '★ Special · Hangar slot']);
+    await win.selectOption('#outfit-category', 'special/own');
     assert.deepEqual(await listed(), ['Mining Volley Repeater', 'Mk II Mining Multi-Limpet Controller']);
-    assert.match(await win.textContent('#outfit-suggest [data-part="Mining Volley Repeater"]'), /★ Type-11 Prospector only · size 3/);
+    // all parts: the special ones first, and again in their own category with a star
     await win.selectOption('#outfit-category', '');
-    // found as a mining laser and with "mk2"
+    await win.fill('#outfit-search', 'volley');
+    assert.deepEqual(await headings(), ['★ Special · Only for the Type-11 Prospector', '★ Special · Mining hardpoints', 'Hardpoints · Mining tools']);
+    assert.equal(await note('Mining Volley Repeater'), '★ only this ship, mining hardpoint');
     await win.fill('#outfit-search', 'mining laser');
     assert.ok((await listed()).includes('Mining Volley Repeater'));
+    assert.equal(await note('Mining Laser'), '★ mining hardpoint');
     await win.fill('#outfit-search', 'mk2 limpet');
-    assert.deepEqual(await listed(), ['Mk II Mining Multi-Limpet Controller']);
-    // the large hardpoint and three more take mining tools only: lasers fit the size 2 and 1 hardpoints
+    assert.deepEqual([...new Set(await listed())], ['Mk II Mining Multi-Limpet Controller']);
+    assert.equal((await headings())[0], '★ Special · Only for the Type-11 Prospector');
+    // the mining hardpoints take mining tools only: lasers fit the size 2 and 1 hardpoints
     await pickPart('beam', 'Beam Laser');
     const beams = await variantLabels();
     assert.ok(beams.some(l => /Medium/.test(l)) && !beams.some(l => /Large|Huge/.test(l)), beams.join());
     await pickPart('volley', 'Mining Volley Repeater');
     assert.deepEqual(await variantLabels(), ['3C · Large Fixed']);
     await win.click('[data-action="addOutfitPart"]');
-    // no other ship can fit it
+
+    // military slots: reinforcements and shield cell banks, starred in their own category too
+    await win.selectOption('#outfit-ship', 'type:federation_gunship');
+    assert.match(await win.textContent('#outfit-ship-info'), /★ Special slots: 3 military slots \(size 4\)$/);
+    assert.equal(await win.$$eval('#outfit-parts .no-fit', chips => chips.length), 1, 'no other ship can fit the volley repeater');
+    await win.selectOption('#outfit-category', 'special/military');
+    const military = await listed();
+    assert.ok(military.includes('Hull Reinforcement Package') && military.includes('Shield Cell Bank') && !military.includes('Shield Generator'), military.join());
+    assert.match(await win.textContent('#outfit-suggest [data-part="Hull Reinforcement Package"] .combo-meta'), /^sizes 1–4$/, 'sizes of the military slots');
+    await win.selectOption('#outfit-category', 'Optional internal/Shields & hull');
+    assert.equal(await note('Hull Reinforcement Package'), '★ military slot');
+    assert.equal(await note('Shield Generator'), '');
+    await win.selectOption('#outfit-category', '');
     await win.selectOption('#outfit-ship', 'fleet:7');
-    assert.equal(await win.$$eval('#outfit-parts .no-fit', chips => chips.length), 1);
     await win.fill('#outfit-search', 'volley');
     assert.match(await win.textContent('#outfit-suggest'), /No matching part fits this ship/);
     await win.click('[data-remove-part="hpt_miningtoolv2_fixed_large"]');

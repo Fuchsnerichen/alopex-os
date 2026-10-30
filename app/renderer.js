@@ -1402,8 +1402,9 @@ const PART_CATEGORIES = SLOT_GROUPS.flatMap(([slot, inSlot, categories]) => [...
     key: `${slot}/${name}`, slot, name, label: `${slot} · ${name}`,
     test: m => inSlot(m) && (rule instanceof RegExp ? rule.test(m.name) : rule(m))
 })));
+PART_CATEGORIES.forEach((c, i) => { c.order = i; });
 for (const m of MODULES) m.cat = PART_CATEGORIES.find(c => c.test(m)) || PART_CATEGORIES[PART_CATEGORIES.length - 1];
-const categoryRank = m => PART_CATEGORIES.indexOf(m.cat);
+const categoryRank = m => m.cat.order;
 const HARDPOINT_SIZE = { 1: 'Small', 2: 'Medium', 3: 'Large', 4: 'Huge' };
 const RATING_ORDER = 'ABCDEFGHI';
 // Spansh station type -> Ardent station type (STATION_TYPES). Source: EDDiscovery Spansh interface.
@@ -1435,6 +1436,9 @@ function outfitShip() {
     return { type: String(ship ? ship.type : kind === 'type' ? id : '').toLowerCase(), ship };
 }
 
+// a star behind ships with special slots or parts of their own
+const specialMark = type => (hasSpecials(type) ? ' ★' : '');
+
 function refreshOutfitShips() {
     const select = $('outfit-ship');
     const previous = select.value;
@@ -1443,11 +1447,11 @@ function refreshOutfitShips() {
     if (ships.length) {
         html += '<optgroup label="Your fleet (journal)">' + ships.map(ship => {
             const prefix = String(ship.id) === String(activeShipId) ? '[ACTIVE] ' : '';
-            return `<option value="fleet:${esc(ship.id)}">${esc(prefix + shipTitle(ship))}</option>`;
+            return `<option value="fleet:${esc(ship.id)}">${esc(prefix + shipTitle(ship) + specialMark(String(ship.type).toLowerCase()))}</option>`;
         }).join('') + '</optgroup>';
     }
     html += '<optgroup label="All ships">' + Object.entries(SHIPS).sort((a, b) => a[1][0].localeCompare(b[1][0]))
-        .map(([type, [label]]) => `<option value="type:${esc(type)}">${esc(label)}</option>`).join('') + '</optgroup>';
+        .map(([type, [label]]) => `<option value="type:${esc(type)}">${esc(label + specialMark(type))}</option>`).join('') + '</optgroup>';
     select.innerHTML = html;
     const has = value => [...select.options].some(o => o.value === value);
     const active = `fleet:${activeShipId}`;
@@ -1510,40 +1514,101 @@ function fitsShip(m, slots) {
 // Can a ship of this type fit the module: its own armour only, parts made for other ships not, and a slot that takes it.
 const fitsType = (m, type) => (!m.armour || isArmourFor(m, type)) && (!m.ships || m.ships.includes(type)) && fitsShip(m, shipSlots(type));
 
-// Part types that fit the chosen ship: { name, cat, special (made for this ship only), sizes, modules }
+// Slots that take only some modules: the restriction in ship-slots.js without its number, and how the app names
+// one and several. Every ship has a planetary approach suite slot, so that one is not special.
+const SPECIAL_SLOTS = {
+    mining: ['mining hardpoint', 'mining hardpoints'],
+    military: ['military slot', 'military slots'],
+    cargo: ['cargo slot', 'cargo slots'],
+    limpets: ['limpet controller slot', 'limpet controller slots'],
+    fighter: ['hangar slot', 'hangar slots']
+};
+const SPECIAL = 'special';    // the ★ Special categories: key "special" for all, "special/<kind>" for one kind
+const OWN_PARTS = 'own';      // the kind for parts made for this ship only
+const SHIPS_WITH_OWN_PARTS = new Set(Object.values(SHIP_MODULES).flat());
+const slotKind = restriction => restriction.replace(/\d+$/, '');
+const specialSlotName = (kind, count) => (SPECIAL_SLOTS[kind] || [`${kind} slot`, `${kind} slots`])[count === 1 ? 0 : 1];
+const capitalize = text => text.charAt(0).toUpperCase() + text.slice(1);
+
+// The ship's special slots by kind, in the order of SPECIAL_SLOTS: [{ kind, slots: [{ size, restriction, hardpoint }] }]
+function specialSlots(type) {
+    const slots = shipSlots(type);
+    if (!slots) return [];
+    const restricted = [...slots.hardpoints.map(s => [s, true]), ...slots.internal.map(s => [s, false])]
+        .filter(([s]) => Array.isArray(s) && slotKind(s[1]) !== 'approach')
+        .map(([[size, restriction], hardpoint]) => ({ size, restriction, hardpoint, kind: slotKind(restriction) }));
+    const order = kind => (kind in SPECIAL_SLOTS ? Object.keys(SPECIAL_SLOTS).indexOf(kind) : 99);
+    return [...new Set(restricted.map(s => s.kind))].sort((a, b) => order(a) - order(b))
+        .map(kind => ({ kind, slots: restricted.filter(s => s.kind === kind) }));
+}
+const hasSpecials = type => SHIPS_WITH_OWN_PARTS.has(type) || specialSlots(type).length > 0;
+
+// "4 mining hardpoints (sizes 3, 2, 1), 1 limpet controller slot (size 5)"
+const specialSlotsText = type => specialSlots(type).map(({ kind, slots }) => {
+    const sizes = [...new Set(slots.map(s => s.size))].sort((a, b) => b - a);
+    return `${slots.length} ${specialSlotName(kind, slots.length)} (size${sizes.length > 1 ? 's' : ''} ${sizes.join(', ')})`;
+}).join(', ');
+
+// Does a special slot take the module? Hardpoint slots take hardpoints, optional slots internal modules (and fuel tanks).
+const specialTakes = (slot, m, size) => slot.hardpoint === (m.category === 'hardpoint') && m.category !== 'utility'
+    && slotTakes([slot.size, slot.restriction], m, size);
+
+// Part types that fit the chosen ship: { name, cat, home (its own category), special (kinds: OWN_PARTS and the
+// special slots it fits), specialSizes (sizes per kind), sizes, modules }
 function partTypes() {
     const { type } = outfitShip();
+    const special = specialSlots(type);
     const types = new Map();
     for (const m of MODULES) {
         if (!fitsType(m, type)) continue;
-        if (!types.has(m.name)) types.set(m.name, { name: m.name, cat: m.cat, special: false, sizes: [], modules: [] });
+        if (!types.has(m.name)) types.set(m.name, { name: m.name, cat: m.cat, home: m.cat, special: [], specialSizes: {}, sizes: [], modules: [] });
         const part = types.get(m.name);
-        part.sizes.push(Number(m.size));
+        const size = Number(m.size);
+        part.sizes.push(size);
         part.modules.push(m);
-        if (m.ships) part.special = true;
+        const kinds = special.filter(k => !m.armour && k.slots.some(slot => specialTakes(slot, m, size))).map(k => k.kind);
+        for (const kind of m.ships ? [OWN_PARTS, ...kinds] : kinds) {
+            if (!part.special.includes(kind)) part.special.push(kind);
+            (part.specialSizes[kind] = part.specialSizes[kind] || []).push(size);
+        }
     }
     return [...types.values()];
 }
 
-// Does the part belong to the category chosen above the search ("" = all, SPECIAL_PARTS, a slot group,
-// or "slot group/category")?
-const SPECIAL_PARTS = 'special';
-const inCategory = (part, key) => (key === SPECIAL_PARTS ? part.special : !key || part.cat.key === key || part.cat.slot === key);
+// The ★ Special categories of the ship, ahead of all others: its own parts first, then one per kind of special slot.
+function specialCategories(type) {
+    const kinds = specialSlots(type).map(({ kind, slots }) => [kind, capitalize(specialSlotName(kind, slots.length))]);
+    if (SHIPS_WITH_OWN_PARTS.has(type)) kinds.unshift([OWN_PARTS, `Only for the ${shipLabel(type)}`]);
+    return Object.fromEntries(kinds.map(([kind, name], i) => [kind, { key: `${SPECIAL}/${kind}`, slot: SPECIAL, name, label: `★ Special · ${name}`, order: i - 100 }]));
+}
 
-// Every word has to match the name, a search word or the category; "6a" or "6" picks the size (and rating) as well.
-// Hits come grouped by category: while browsing in the order of the game, while searching the category with the
-// best match first ("frame shift": the drive before the wake scanner). Parts found only through the category name
-// ("mining", "lasers") come last in their category.
+// Every part in its own category, and once more in each ★ Special category it belongs to.
+function partEntries() {
+    const special = specialCategories(outfitShip().type);
+    return partTypes().flatMap(part => [part, ...part.special.map(kind => ({ ...part, cat: special[kind], sizes: part.specialSizes[kind] }))]);
+}
+
+// "only this ship, mining hardpoint"; starred on a special part shown in its own category
+const specialReasons = part => part.special.map(kind => (kind === OWN_PARTS ? 'only this ship' : specialSlotName(kind, 1))).join(', ');
+const specialNote = part => (part.cat === part.home && part.special.length ? `★ ${specialReasons(part)}` : '');
+
+// Does the entry belong to the category chosen above the search ("" = all, SPECIAL, a slot group, or "group/category")?
+const inCategory = (entry, key) => !key || entry.cat.key === key || entry.cat.slot === key;
+
+// Every word has to match the name, a search word, the category or a special slot; "6a" or "6" picks the size (and
+// rating) as well. Hits come grouped by category, the ★ Special ones always first; then while browsing in the order
+// of the game, while searching the category with the best match first ("frame shift": the drive before the wake
+// scanner). Parts found only through the category name ("mining", "lasers", "military") come last in their category.
 function searchParts(query, category = '') {
     const words = query.toLowerCase().replace(/\bmk\s*(ii|2)\b/g, 'mk ii').split(/\s+/).filter(Boolean);   // "mk2", "mkii" = "Mk II"
     const variant = words.find(w => /^[0-8][a-i]?$/.test(w)) || null;
     const terms = words.filter(w => w !== variant);
     const hits = [];
-    for (const part of partTypes()) {
+    for (const part of partEntries()) {
         if (!inCategory(part, category)) continue;
         const aliases = PART_ALIASES[part.name] || '';
         const own = `${part.name} ${aliases}`.toLowerCase();
-        const text = `${own} ${part.cat.label.toLowerCase()}`;
+        const text = `${own} ${part.home.label} ${part.cat.label} ${specialReasons(part)}`.toLowerCase();
         if (!terms.every(t => text.includes(t))) continue;
         if (variant && !part.modules.some(m => `${m.size}${m.rating}`.toLowerCase().startsWith(variant))) continue;
         const name = part.name.toLowerCase(), first = terms[0] || '';
@@ -1551,37 +1616,45 @@ function searchParts(query, category = '') {
             : name.startsWith(first) || aliases.split(' ').includes(first) ? 0 : ` ${name}`.includes(` ${first}`) ? 1 : 2;
         hits.push({ part, rank });
     }
-    const catIndex = part => categoryRank(part.modules[0]);
     const groupAt = new Map();
     if (terms.length) {
-        [...hits].sort((a, b) => a.rank - b.rank || a.part.name.length - b.part.name.length || catIndex(a.part) - catIndex(b.part))
+        [...hits].sort((a, b) => a.rank - b.rank || a.part.name.length - b.part.name.length || a.part.cat.order - b.part.cat.order)
             .forEach(({ part }, i) => { if (!groupAt.has(part.cat)) groupAt.set(part.cat, i); });
     } else {
-        hits.forEach(({ part }) => groupAt.set(part.cat, catIndex(part)));
+        hits.forEach(({ part }) => groupAt.set(part.cat, part.cat.order));
     }
     const slotOrder = name => (name in CORE_SLOT ? CORE_SLOT[name] : 9);   // core parts in the order of their slots
-    hits.sort((a, b) => groupAt.get(a.part.cat) - groupAt.get(b.part.cat)
+    const normal = part => (part.cat.slot === SPECIAL ? 0 : 1);
+    hits.sort((a, b) => normal(a.part) - normal(b.part) || groupAt.get(a.part.cat) - groupAt.get(b.part.cat)
         || a.rank - b.rank || slotOrder(a.part.name) - slotOrder(b.part.name) || a.part.name.localeCompare(b.part.name));
     return { variant, parts: hits.map(h => h.part) };
 }
 
-const categoryName = key => (PART_CATEGORIES.find(c => c.key === key) || { label: key }).label;
+function categoryName(key) {
+    if (key === SPECIAL) return 'Special';
+    const all = [...PART_CATEGORIES, ...Object.values(specialCategories(outfitShip().type))];
+    return (all.find(c => c.key === key) || { label: key }).label;
+}
 const SLOT_ALL = { 'Hardpoints': 'All hardpoints', 'Utility mounts': 'All utility mounts', 'Core internal': 'All core internals', 'Optional internal': 'All optional internals' };
 
-// The category list next to the search: how many part types of each fit the chosen ship; empty categories are left out.
+// The category list next to the search: how many part types of each fit the chosen ship; empty categories are left
+// out. The ship's ★ Special categories come first.
 function refreshOutfitCategories() {
     const select = $('outfit-category');
     const previous = select.value;
-    const types = partTypes();
+    const entries = partEntries();
     const option = (key, label) => {
-        const n = types.filter(p => inCategory(p, key)).length;
+        const n = new Set(entries.filter(e => inCategory(e, key)).map(e => e.name)).size;
         return n || key === previous ? `<option value="${esc(key)}">${esc(label)} (${n})</option>` : '';
     };
-    const special = option(SPECIAL_PARTS, `★ ${shipLabel(outfitShip().type)} only`);
-    select.innerHTML = `<option value="">All parts (${types.length})</option>${special}` + SLOT_GROUPS.map(([slot]) => {
-        const options = PART_CATEGORIES.filter(c => c.slot === slot).map(c => option(c.key, c.name)).join('');
-        return options ? `<optgroup label="${esc(slot)}">${option(slot, SLOT_ALL[slot])}${options}</optgroup>` : '';
-    }).join('');
+    const group = (label, options) => (options ? `<optgroup label="${esc(label)}">${options}</optgroup>` : '');
+    const special = Object.values(specialCategories(outfitShip().type)).map(c => option(c.key, `★ ${c.name}`)).join('');
+    select.innerHTML = option('', 'All parts')
+        + group('★ Special', special && option(SPECIAL, '★ All special parts') + special)
+        + SLOT_GROUPS.map(([slot]) => {
+            const options = PART_CATEGORIES.filter(c => c.slot === slot).map(c => option(c.key, c.name)).join('');
+            return group(slot, options && option(slot, SLOT_ALL[slot]) + options);
+        }).join('');
     select.value = previous;
     if (select.value !== previous) select.value = '';
 }
@@ -1600,14 +1673,12 @@ function renderSuggestions() {
     suggestHits = parts;
     suggestVariant = variant;
     if (suggestIndex >= suggestHits.length) suggestIndex = suggestHits.length - 1;
-    const ship = shipLabel(outfitShip().type);
-    const empty = category === SPECIAL_PARTS ? `No part is made only for the ${ship}`
-        : `No matching part${category ? ` in ${categoryName(category)}` : ''} fits this ship`;
-    // a heading above the first part of each category; parts made only for this ship get a star
+    const empty = `No matching part${category ? ` in ${categoryName(category)}` : ''} fits this ship`;
+    // a heading above the first part of each category; special parts are starred in their own category
     list.innerHTML = suggestHits.length
         ? suggestHits.map((p, i) => (i && suggestHits[i - 1].cat === p.cat ? '' : `<li class="combo-group" role="presentation">${esc(p.cat.label)}</li>`)
             + `<li role="option" id="outfit-option-${i}" data-part="${esc(p.name)}" aria-selected="${i === suggestIndex}" aria-description="${esc(p.cat.label)}">`
-            + `<span>${esc(p.name)}</span><span class="combo-meta">${p.special ? `<span class="part-special">★ ${esc(ship)} only</span> · ` : ''}${esc(sizeRange(p))}</span></li>`).join('')
+            + `<span>${esc(p.name)}</span><span class="combo-meta">${specialNote(p) ? `<span class="part-special">${esc(specialNote(p))}</span> · ` : ''}${esc(sizeRange(p))}</span></li>`).join('')
         : `<li class="combo-empty">${esc(empty)}</li>`;
     list.hidden = false;
     input.setAttribute('aria-expanded', 'true');
@@ -1640,9 +1711,10 @@ function refreshOutfitModules() {
     const known = !ship ? '' : !ship.modules ? ' · board this ship once to read its modules'
         : ` · fitted modules from the journal${ship.loadoutAt ? ` (${timeAgo(ship.loadoutAt)})` : ''}`;
     const slots = shipSlots(type) ? '' : ' · slot sizes unknown for this ship, all sizes shown';
-    const special = partTypes().filter(p => p.special).map(p => p.name);
-    const own = special.length ? ` · ★ only for this ship: ${special.join(', ')}` : '';
-    $('outfit-ship-info').textContent = `Landing pad ${PAD_LABEL[shipPad(type)] || '?'}${known}${slots}${own}`;
+    const special = specialSlotsText(type);
+    const ownParts = partTypes().filter(p => p.special.includes(OWN_PARTS)).map(p => p.name);
+    const notes = (special ? ` · ★ Special slots: ${special}` : '') + (ownParts.length ? ` · ★ Only for this ship: ${ownParts.join(', ')}` : '');
+    $('outfit-ship-info').textContent = `Landing pad ${PAD_LABEL[shipPad(type)] || '?'}${known}${slots}${notes}`;
     refreshOutfitCategories();
     refreshOutfitVariants();
     renderOutfitParts();
