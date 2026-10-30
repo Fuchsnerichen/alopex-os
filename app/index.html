@@ -269,7 +269,10 @@
                 <label class="checkbox-row"><input type="checkbox" id="outfit-buy-ship"> Station also sells this ship type</label>
             </div>
         </div>
-        <button class="btn-cyan" data-action="addOutfitPart" data-sound>+ Add part to the list</button>
+        <div class="action-row">
+            <button class="btn-cyan" data-action="addOutfitPart" data-sound>+ Add part to the list</button>
+            <button class="btn-cyan" data-action="addCorePackage" data-sound title="Thrusters, Power Plant, Frame Shift Drive (SCO) and Power Distributor, A-rated, each in the slot size of the chosen ship">+ A-rated core package</button>
+        </div>
         <div id="outfit-parts" class="part-list" aria-live="polite"></div>
         <button data-action="searchOutfit" data-sound>Find the nearest station with all parts</button>
         <p class="source-note">Outfitting data from the Spansh station search (collected via EDDN), module list from EDCD FDevIDs. The app checks the full module list of every station, so a result sells every part on the list. Landing pad from the chosen ship; Fleet Carriers and planetary stations follow the STATIONS switches above. Fleet ships show what is fitted now (journal). With SHIPYARD ticked, the station also has to sell the chosen ship type; its price counts into the total.</p>

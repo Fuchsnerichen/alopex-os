@@ -39,7 +39,9 @@ mit einem kostenpflichtigen Zertifikat signiert ist. *Weitere Informationen* →
 - **Outfitting:** Schiff wählen (aus der Flotte oder einen Schiffstyp), die gewünschten Teile auf die Liste
   setzen, suchen. Teile findest du per Texteingabe, auch mit Kürzeln wie *FSD*, *SCB*, *HRP* oder gleich mit
   Größe (*6A scoop*). Angeboten werden nur Größen, die in einen Steckplatz des gewählten Schiffs passen; Teile
-  auf der Liste, die nicht passen, sind rot markiert. Die App zeigt die nächsten Stationen, die *alle* Teile verkaufen, mit Preisen. Bei Schiffen
+  auf der Liste, die nicht passen, sind rot markiert. *A-rated core package* setzt Thrusters, Power Plant, Frame Shift Drive (SCO)
+  und Power Distributor in A auf die Liste, jeweils in der Größe, die das gewählte Schiff nimmt; wechselst du das
+  Schiff, passt sich das Paket an. Die App zeigt die nächsten Stationen, die *alle* Teile verkaufen, mit Preisen. Bei Schiffen
   aus der Flotte steht dabei, was gerade eingebaut ist.
   Mit *Shipyard* muss die Station zusätzlich den gewählten Schiffstyp verkaufen, praktisch zum Kaufen und
   Ausrüsten an einem Ort. Ohne Teile auf der Liste sucht die App nur das Schiff.
