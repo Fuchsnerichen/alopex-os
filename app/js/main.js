@@ -61,7 +61,7 @@ $('exo-target').innerHTML = EXO_SPECIES
 $('exo-target').value = 'Stratum|Tectonicas';
 $('mine-resource').innerHTML = Object.keys(MINING_RESOURCES).map(r => `<option value="${r}">${r}</option>`).join('');
 refreshOutfitShips();
-loadOutfitParts();
+readOutfitParts();
 
 window.addEventListener('DOMContentLoaded', () => {
     loadPrefs();

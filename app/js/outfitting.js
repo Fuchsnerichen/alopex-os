@@ -65,7 +65,11 @@ const OUTFIT_MAX_PAGES = 5;
 const OUTFIT_RESULTS = 5;
 const OUTFIT_MAX_PARTS = 12;
 
-let outfitParts = [];           // symbols of the modules the station has to sell
+// Every ship keeps its own parts list, so a mining build and an explorer build sit side by side:
+// { "fleet:7": [symbols], "type:cobramkiii": [symbols] }, kept across restarts.
+const OUTFIT_PARTS_STORE = 'alopex_outfit_parts';
+let outfitPartsByShip = {};
+let outfitParts = [];           // the list of the ship chosen now: modules the station has to sell
 let outfitShipChosen = false;   // until the user picks a ship, the list follows the active ship
 
 const isArmourFor = (m, type) => m.armour && !!type && m.symbol.startsWith(type + '_armour_');
@@ -363,7 +367,7 @@ function refreshOutfitModules() {
     $('outfit-ship-info').textContent = `Landing pad ${PAD_LABEL[shipPad(type)] || '?'}${known}${slots}${notes}`;
     refreshOutfitCategories();
     refreshOutfitVariants();
-    renderOutfitParts();
+    loadOutfitParts();          // another ship, another list
 }
 
 function refreshOutfitVariants(wanted) {
@@ -453,19 +457,40 @@ function renderOutfitParts() {
     }
     $('outfit-parts').innerHTML = outfitParts.length
         ? [...groups].map(([slot, entries]) => `<div class="part-group"><span class="part-group-label">${esc(slot)}</span>${entries.map(chip).join('')}</div>`).join('')
-        : '<span class="muted">No parts on the list yet: search a part above and add it.</span>';
+        : `<span class="muted">${esc(emptyPartsText(type))}</span>`;
+}
+
+// Says whose list is empty, and that the parts of the other ships are still there.
+function emptyPartsText(type) {
+    const others = Object.keys(outfitPartsByShip).filter(key => key !== $('outfit-ship').value).length;
+    return `No parts for the ${shipLabel(type)} yet: search a part above and add it.`
+        + (others ? ` Every ship keeps its own list, ${others} other ship${others > 1 ? 's have' : ' has'} one.` : '');
 }
 
 function saveOutfitParts() {
-    try { localStorage.setItem('alopex_outfit_parts', JSON.stringify(outfitParts)); } catch (e) {}
+    const key = $('outfit-ship').value;
+    if (outfitParts.length) outfitPartsByShip[key] = outfitParts;
+    else delete outfitPartsByShip[key];                      // an emptied list is not worth keeping
+    try { localStorage.setItem(OUTFIT_PARTS_STORE, JSON.stringify(outfitPartsByShip)); } catch (e) {}
 }
 
+// Shows the list of the ship chosen now; parts the app no longer knows are dropped.
 function loadOutfitParts() {
-    try {
-        const saved = JSON.parse(localStorage.getItem('alopex_outfit_parts') || '[]');
-        if (Array.isArray(saved)) outfitParts = saved.filter(entry => MODULE_BY_SYMBOL.has(entry) || entry === CORE_PACKAGE).slice(0, OUTFIT_MAX_PARTS);
-    } catch (e) {}
+    const saved = outfitPartsByShip[$('outfit-ship').value] || [];
+    outfitParts = saved.filter(entry => MODULE_BY_SYMBOL.has(entry) || entry === CORE_PACKAGE).slice(0, OUTFIT_MAX_PARTS);
     renderOutfitParts();
+}
+
+// Once at the start: read the lists of every ship, and take over a list written by an older ALOPEX.
+function readOutfitParts() {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(OUTFIT_PARTS_STORE) || 'null'); } catch (e) {}
+    // up to 1.0.17 there was one list for every ship: it becomes the list of the ship shown first
+    if (Array.isArray(saved)) saved = { [$('outfit-ship').value]: saved };
+    outfitPartsByShip = saved && typeof saved === 'object'
+        ? Object.fromEntries(Object.entries(saved).filter(([, list]) => Array.isArray(list) && list.length))
+        : {};
+    loadOutfitParts();
 }
 
 function addOutfitPart() {

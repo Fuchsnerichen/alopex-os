@@ -48,7 +48,9 @@ mit einem kostenpflichtigen Zertifikat signiert ist. *Weitere Informationen* →
   der Panther Clipper Mk II …) oder eigenen Teilen haben in der Schiffsauswahl einen ★, darunter steht, welche
   Plätze es sind. In der Teileliste kommt die Kategorie *★ Special* zuerst, getrennt nach Art des Platzes und
   „Only for this ship“ (z. B. Mining Volley Repeater und Mk II Mining Multi-Limpet Controller der Type-11).
-  Dieselben Teile stehen auch in ihrer normalen Kategorie, dort mit ★ gekennzeichnet. *mk2* findet alle Mk-II-Teile. *A-rated core package* setzt Thrusters, Power Plant, Frame Shift Drive (SCO)
+  Dieselben Teile stehen auch in ihrer normalen Kategorie, dort mit ★ gekennzeichnet. *mk2* findet alle Mk-II-Teile.
+  Jedes Schiff hat seine eigene Teileliste, die auch nach einem Neustart erhalten bleibt: Der Mining-Ausbau der
+  Type-11 und der Explorer-Ausbau der Anaconda liegen also nebeneinander. *A-rated core package* setzt Thrusters, Power Plant, Frame Shift Drive (SCO)
   und Power Distributor in A auf die Liste, jeweils in der Größe, die das gewählte Schiff nimmt; wechselst du das
   Schiff, passt sich das Paket an. Die App zeigt die nächsten Stationen, die *alle* Teile verkaufen, mit Preisen. Bei Schiffen
   aus der Flotte steht dabei, was gerade eingebaut ist.

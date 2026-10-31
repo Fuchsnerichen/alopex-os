@@ -400,11 +400,12 @@ test('outfitting: the nearest station that sells every part on the list', async 
     // grouped by slot type in the order of the game; bulkheads are core internals
     assert.deepEqual(await win.$$eval('#outfit-parts .part-group-label', els => els.map(e => e.textContent)), ['Core internal', 'Optional internal']);
     assert.match(await win.$eval('#outfit-parts', e => e.innerText), /Core internal\s+Military Grade Composite \(Anaconda\)[\s\S]*6A Frame Shift Drive[\s\S]*Optional internal\s+6A Fuel Scoop/i);
-    // parts that do not fit another ship are marked on the list
+    // every ship keeps its own list
     await win.selectOption('#outfit-ship', 'type:cobramkiii');
-    assert.equal(await win.$$eval('#outfit-parts .no-fit', chips => chips.length), 3);
+    assert.equal(await win.$$eval('#outfit-parts .part-chip', chips => chips.length), 0);
+    assert.match(await win.textContent('#outfit-parts'), /No parts for the Cobra Mk III yet[\s\S]*1 other ship has one/i);
     await win.selectOption('#outfit-ship', 'fleet:7');
-    assert.equal(await win.$$eval('#outfit-parts .no-fit', chips => chips.length), 0);
+    assert.equal(await win.$$eval('#outfit-parts .part-chip', chips => chips.length), 3, 'the list of the Anaconda is back');
 
     await win.click('[data-action="searchOutfit"]');
     await win.waitForSelector('#outfit-results .accordion-item, #outfit-results .info-box, #outfit-results .warning-box');
@@ -447,7 +448,7 @@ test('outfitting: the nearest station that sells every part on the list', async 
 
     await win.click('[data-remove-part="int_guardianfsdbooster_size5"]');
     assert.deepEqual(JSON.parse(await win.evaluate(() => localStorage.getItem('alopex_outfit_parts'))),
-        ['int_hyperdrive_size6_class5', 'int_fuelscoop_size6_class5', 'anaconda_armour_grade3']);
+        { 'fleet:7': ['int_hyperdrive_size6_class5', 'int_fuelscoop_size6_class5', 'anaconda_armour_grade3'] });
 });
 
 test('outfitting: the station can also have to sell the ship', async () => {
@@ -489,11 +490,14 @@ test('outfitting: the A-rated core package follows the chosen ship', async () =>
     const chip = () => win.textContent('#outfit-parts .part-package');
     await win.click('[data-action="addCorePackage"]');
     assert.match(await chip(), /Core package A: 7A Thrusters · 8A Power Plant · 6A FSD \(SCO\) · 8A Power Distributor/);
+    // on another ship the package takes that ship's slot sizes
     await win.selectOption('#outfit-ship', 'type:cobramkiii');
+    await win.click('[data-action="addCorePackage"]');
     assert.match(await chip(), /Core package A: 4A Thrusters · 4A Power Plant · 4A FSD \(SCO\) · 3A Power Distributor/);
+    await win.click('[data-remove-part="package:core-a"]');
     await win.selectOption('#outfit-ship', 'type:mediumtransport01');
-    assert.match(await chip(), /slot sizes of this ship unknown/);
-    assert.equal(await win.$$eval('#outfit-parts .no-fit', chips => chips.length), 1);
+    await win.click('[data-action="addCorePackage"]');
+    assert.equal(await win.$$eval('#outfit-parts .part-chip', chips => chips.length), 0, 'a ship without slot data cannot have the package');
     await win.selectOption('#outfit-ship', 'fleet:7');
     await win.click('[data-action="addCorePackage"]');
     assert.equal(await win.$$eval('#outfit-parts .part-chip', chips => chips.length), 1, 'the package goes on the list once');
@@ -505,7 +509,7 @@ test('outfitting: the A-rated core package follows the chosen ship', async () =>
     const text = await win.$eval('#outfit-results', e => e.innerText);
     assert.match(text, /255,884,053 CR\s+all parts/i);   // 51,289,890 + 162,586,486 + 16,179,531 + 25,828,146
     assert.match(text, /✓ 6A Frame Shift Drive \(SCO\): 16,179,531 CR/i);
-    assert.deepEqual(JSON.parse(await win.evaluate(() => localStorage.getItem('alopex_outfit_parts'))), ['package:core-a']);
+    assert.deepEqual(JSON.parse(await win.evaluate(() => localStorage.getItem('alopex_outfit_parts'))), { 'fleet:7': ['package:core-a'] });
     await win.click('[data-remove-part="package:core-a"]');
 });
 
@@ -609,7 +613,7 @@ test('outfitting: special slots and parts made for one ship come first and are s
     // military slots: reinforcements and shield cell banks, starred in their own category too
     await win.selectOption('#outfit-ship', 'type:federation_gunship');
     assert.match(await win.textContent('#outfit-ship-info'), /★ Special slots: 3 military slots \(size 4\)$/);
-    assert.equal(await win.$$eval('#outfit-parts .no-fit', chips => chips.length), 1, 'no other ship can fit the volley repeater');
+    assert.equal(await win.$$eval('#outfit-parts .part-chip', chips => chips.length), 0, 'the repeater stays on the list of the Type-11');
     await win.selectOption('#outfit-category', 'special/military');
     const military = await listed();
     assert.ok(military.includes('Hull Reinforcement Package') && military.includes('Shield Cell Bank') && !military.includes('Shield Generator'), military.join());
@@ -621,7 +625,47 @@ test('outfitting: special slots and parts made for one ship come first and are s
     await win.selectOption('#outfit-ship', 'fleet:7');
     await win.fill('#outfit-search', 'volley');
     assert.match(await win.textContent('#outfit-suggest'), /No matching part fits this ship/);
+    await win.selectOption('#outfit-ship', 'type:lakonminer');
     await win.click('[data-remove-part="hpt_miningtoolv2_fixed_large"]');
+    await win.selectOption('#outfit-ship', 'fleet:7');
+});
+
+test('outfitting: a list saved earlier is taken over and checked against the ship', async () => {
+    const chips = () => win.$$eval('#outfit-parts .part-chip', els => els.map(e => e.textContent.replace('×', '').trim()));
+    const seed = parts => win.evaluate(saved => {
+        localStorage.setItem('alopex_outfit_parts', JSON.stringify(saved));
+        readOutfitParts();
+    }, parts);
+
+    // one list for every ship, the way ALOPEX up to 1.0.17 saved it: it becomes the list of the ship shown
+    await seed(['int_fuelscoop_size6_class5', 'package:core-a']);
+    // grouped by slot type, so the core package comes before the scoop
+    assert.deepEqual(await chips(), ['Core package A: 7A Thrusters · 8A Power Plant · 6A FSD (SCO) · 8A Power Distributor', '6A Fuel Scoop']);
+    await win.selectOption('#outfit-ship', 'type:cobramkiii');
+    assert.deepEqual(await chips(), [], 'the other ships did not get it too');
+    await win.selectOption('#outfit-ship', 'fleet:7');
+    // the next change writes it in the new shape
+    await win.click('[data-remove-part="package:core-a"]');
+    assert.deepEqual(JSON.parse(await win.evaluate(() => localStorage.getItem('alopex_outfit_parts'))),
+        { 'fleet:7': ['int_fuelscoop_size6_class5'] });
+
+    // a saved part that does not fit any more, and a package of a ship whose slot sizes are unknown
+    await seed({
+        'type:sidewinder': ['int_hyperdrive_size6_class5', 'hpt_miningtoolv2_fixed_large'],
+        'type:mediumtransport01': ['package:core-a']
+    });
+    await win.selectOption('#outfit-ship', 'type:sidewinder');
+    assert.equal(await win.$$eval('#outfit-parts .no-fit', els => els.length), 2, 'too large for the Sidewinder, and made for the Type-11');
+    await win.selectOption('#outfit-ship', 'type:mediumtransport01');
+    assert.match(await win.textContent('#outfit-parts .part-package'), /slot sizes of this ship unknown/);
+    assert.equal(await win.$$eval('#outfit-parts .no-fit', els => els.length), 1);
+
+    // parts this ALOPEX does not know are dropped
+    await seed({ 'fleet:7': ['int_fuelscoop_size6_class5', 'no_such_module'] });
+    await win.selectOption('#outfit-ship', 'fleet:7');
+    assert.deepEqual(await chips(), ['6A Fuel Scoop']);
+    await win.click('[data-remove-part="int_fuelscoop_size6_class5"]');
+    assert.deepEqual(JSON.parse(await win.evaluate(() => localStorage.getItem('alopex_outfit_parts'))), {}, 'an emptied list is not kept');
 });
 
 test('copy buttons write to the clipboard', async () => {

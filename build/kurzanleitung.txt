@@ -18,6 +18,8 @@ Neu in 1.0.18:
     der Type-11: Mining Volley Repeater, Mk II Mining Multi-Limpet Controller). Dieselben
     Teile stehen auch in ihrer normalen Kategorie, dort mit Stern. "mk2" findet alle
     Mk-II-Teile.
+  - Outfitting: Jedes Schiff hat seine eigene Teileliste, auch nach einem Neustart. Der
+    Mining-Ausbau der Type-11 und der Explorer-Ausbau der Anaconda liegen nebeneinander.
   - Updates: Klappt die Update-Prüfung nicht, steht unter UPDATES jetzt, woran es liegt
     (offline, GitHub ausgelastet, Datei fehlt im Release ...), statt "Up to date".
 
