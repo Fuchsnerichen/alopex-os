@@ -121,6 +121,7 @@ Unter Windows ist das der einfachste Weg. Unter Linux braucht der Installer zus�
 | `preload.cjs` | Die Brücke: genau die Funktionen, die die Oberfläche nutzen darf |
 | `lib/` | Ardent, Spansh, Warennamen, Journal, Updates und der gemeinsame Netzwerk-Helfer |
 | `app/` | Die Oberfläche (HTML, CSS, JavaScript, Schrift Rajdhani unter SIL OFL 1.1) |
+| `app/js/` | Die Skripte der Oberfläche, eine Datei pro Bereich: `constants`, `utils`, `api`, `audio`, `fleet`, `prefs`, `ui`, `journal`, `trade`, `passengers`, `mining`, `exobio`, `outfitting`, `intro`, `updates` und `main` (Ereignisse und Start). Sie teilen sich einen Namensraum und laden in dieser Reihenfolge (`index.html`) |
 | `app/outfitting-data.js` | Modulliste für Outfitting, erzeugt aus EDCD FDevIDs `outfitting.csv` |
 | `app/ship-slots.js` | Steckplatz-Größen jedes Schiffs, Spezial-Steckplätze und Teile nur für ein Schiff, erzeugt aus EDCD coriolis-data |
 | `scripts/build-ship-slots.mjs` | Erzeugt `app/ship-slots.js` neu: `node scripts/build-ship-slots.mjs <Pfad>/coriolis-data <Pfad>/FDevIDs` |

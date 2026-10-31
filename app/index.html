@@ -8,7 +8,7 @@
 </head>
 <body>
     <!-- Start intro: the arctic fox (Alopex lagopus) and the ship computer reporting what the journal says.
-         renderer.js (INTRO) runs it while the journal loads; a click or any key skips it. -->
+         js/intro.js runs it while the journal loads; a click or any key skips it. -->
     <div id="intro" class="intro" aria-hidden="true">
         <canvas id="intro-stars" class="intro-stars"></canvas>
         <div class="intro-flash"></div>
@@ -55,7 +55,7 @@
         </div>
     </header>
 
-    <!-- Shown once after ALOPEX OS updated itself (renderer.js, UPDATES). -->
+    <!-- Shown once after ALOPEX OS updated itself (js/updates.js). -->
     <div id="update-notice" class="update-notice" role="status" hidden>
         <div class="update-notice-head">
             <strong id="update-notice-title">ALOPEX OS was updated</strong>
@@ -323,6 +323,22 @@
 
     <script src="outfitting-data.js"></script>
     <script src="ship-slots.js"></script>
-    <script src="renderer.js"></script>
+    <!-- Page scripts in load order: data and helpers first, each area after what it uses, main.js wires up and starts. -->
+    <script src="js/constants.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/fleet.js"></script>
+    <script src="js/prefs.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/journal.js"></script>
+    <script src="js/trade.js"></script>
+    <script src="js/passengers.js"></script>
+    <script src="js/mining.js"></script>
+    <script src="js/exobio.js"></script>
+    <script src="js/outfitting.js"></script>
+    <script src="js/intro.js"></script>
+    <script src="js/updates.js"></script>
+    <script src="js/main.js"></script>
 </body>
 </html>
