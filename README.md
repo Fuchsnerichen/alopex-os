@@ -104,14 +104,28 @@ Unter Windows ist das der einfachste Weg. Unter Linux braucht der Installer zus�
 
 ### Neue Version veröffentlichen (Updates für alle)
 
-1. In `package.json` die `version` erhöhen und `npm run dist` ausführen.
-2. Auf GitHub unter *Releases → Draft a new release* ein Tag `v<version>` anlegen (z. B. `v1.0.12`),
+GitHub baut die Dateien selbst (`.github/workflows/release.yml`), hochladen muss man nichts:
+
+1. In `package.json` die `version` erhöhen, in `build/kurzanleitung.txt` den Abschnitt *Neu in …*
+   schreiben, beides nach `main` mergen.
+2. Auf GitHub unter *Releases → Draft a new release* ein Tag `v<version>` anlegen (z. B. `v1.0.18`),
    Titel `ALOPEX OS <version>`. Der Beschreibungstext erscheint in der App unter *What's new*.
-3. Aus `dist/` anhängen: `ALOPEX-OS-<version>-Setup.exe`, `ALOPEX-OS-<version>-Setup.exe.blockmap`,
-   `latest.yml` und `ALOPEX-OS-<version>-portable.exe`.
-4. *Publish release* (kein Entwurf, keine Vorabversion). Ab dann finden die installierten Apps das Update.
-   GitHub meldet eine neue Version oft erst nach einigen Minuten; bis dahin zeigt *Check now* noch
-   *Up to date*. Fehlt eine Datei im Release, steht unter *Updates* eine Fehlermeldung, die sagt, welche.
+3. *Publish release* (kein Entwurf, keine Vorabversion).
+
+Der Workflow baut daraufhin unter Windows aus genau dem getaggten Stand, prüft die Sicherheits-Fuses
+und dass `latest.yml` zur Setup-Datei passt, und hängt sechs Dateien an das Release: Setup, Blockmap,
+`latest.yml`, portable, `SHA256SUMS.txt` und die Kurzanleitung. Schlägt etwas fehl, bleibt das Release
+ohne Dateien, und niemand bekommt ein kaputtes Update angeboten.
+
+Stimmt das Tag nicht mit der `version` in `package.json` überein, bricht der Workflow sofort ab. Zum
+Ausprobieren ohne Release: *Actions → Release → Run workflow*, das baut und prüft alles, hängt aber
+nichts an.
+
+Nach dem Veröffentlichen meldet GitHub eine neue Version oft erst nach einigen Minuten; bis dahin zeigt
+*Check now* noch *Up to date*.
+
+Lokal von Hand bauen geht weiter: `npm run dist`, danach `node scripts/release-files.mjs` für
+Prüfsummen und Kurzanleitung.
 
 ## Aufbau
 
@@ -126,6 +140,9 @@ Unter Windows ist das der einfachste Weg. Unter Linux braucht der Installer zus�
 | `app/ship-slots.js` | Steckplatz-Größen jedes Schiffs, Spezial-Steckplätze und Teile nur für ein Schiff, erzeugt aus EDCD coriolis-data |
 | `scripts/build-ship-slots.mjs` | Erzeugt `app/ship-slots.js` neu: `node scripts/build-ship-slots.mjs <Pfad>/coriolis-data <Pfad>/FDevIDs` |
 | `scripts/build-outfitting-data.mjs` | Erzeugt `app/outfitting-data.js` neu: `node scripts/build-outfitting-data.mjs <Pfad>/outfitting.csv` (bei neuen Schiffen oder Modulen) |
+| `.github/workflows/` | `tests.yml` lässt bei jedem Push nach `main` oder `release/*` die Tests laufen, `release.yml` baut ein veröffentlichtes Release unter Windows und hängt die Dateien an |
+| `build/kurzanleitung.txt` | Vorlage der Kurzanleitung für die Downloads; `%VERSION%` und die Prüfsummen setzt `scripts/release-files.mjs` ein |
+| `scripts/release-files.mjs` | Prüft den Build in `dist/` und schreibt `SHA256SUMS.txt` und die Kurzanleitung |
 | `test/` | Unit-Tests (`lib.test.mjs`) und End-to-End-Tests der echten App (`app.test.mjs`) |
 | `build/icon.*` | App-Icon, der Fuchskopf aus dem Intro: `icon.svg` (Zeichnung), `icon.png` (512 px), `icon.ico` (16–256 px, kleine Größen vereinfacht). Neu erzeugen mit `node scripts/build-icons.mjs` |
 | `LICENSE` | Nutzungsbedingungen (nur lesen) und Lizenzen von Schrift und Moduldaten |

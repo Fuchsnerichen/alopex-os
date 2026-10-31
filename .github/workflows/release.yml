@@ -1,0 +1,73 @@
+# Builds ALOPEX OS on Windows and attaches the downloads to a published release, so the
+# release always holds files built from exactly the tagged source.
+# Publish a release with tag v<version> on GitHub and this takes care of the rest.
+# "Run workflow" builds and checks the same way without touching any release.
+name: Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write   # only to attach the files to the release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+        with:
+          ref: ${{ github.event.release.tag_name || github.ref }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1   # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+
+      - name: The tag has to name the version in package.json
+        # Otherwise latest.yml would offer a version the release does not contain and no
+        # installed ALOPEX could update to it.
+        if: github.event_name == 'release'
+        shell: pwsh
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($env:TAG -ne "v$version") {
+            throw "Release $env:TAG does not match version $version in package.json"
+          }
+
+      - name: Unit tests
+        # The end-to-end tests run in the Tests workflow; a release must not hang on a window.
+        run: node --test test/lib.test.mjs
+
+      - name: Build
+        run: npm run dist
+
+      - name: Security switches must be set
+        shell: pwsh
+        run: |
+          $fuses = npx --no-install '@electron/fuses' read --app "dist/win-unpacked/ALOPEX OS.exe" | Out-String
+          $wanted = 'RunAsNode is Disabled', 'EnableNodeOptionsEnvironmentVariable is Disabled',
+                    'EnableNodeCliInspectArguments is Disabled', 'EnableEmbeddedAsarIntegrityValidation is Enabled',
+                    'OnlyLoadAppFromAsar is Enabled'
+          foreach ($line in $wanted) {
+            if ($fuses -notmatch [regex]::Escape($line)) { throw "not set in the build: $line" }
+          }
+          Write-Host $fuses
+
+      - name: Checksums and Kurzanleitung
+        # Checks that every download is there and that latest.yml matches the setup file, so the
+        # update cannot be broken, and writes the list of files the next step uploads.
+        run: node scripts/release-files.mjs
+
+      - name: Attach the files to the release
+        if: github.event_name == 'release'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload $env:TAG (Get-Content dist/release-files.txt) --clobber
