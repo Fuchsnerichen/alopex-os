@@ -31,6 +31,7 @@ const row = o => ({ commodityName: 'gold', marketId: 1, stationName: 'X', statio
     systemAddress: 1, systemName: 'A', buyPrice: 0, demand: 0, meanPrice: 0, sellPrice: 0, stock: 0,
     updatedAt: new Date(Date.now() - 3600e3).toISOString(), ...o });
 const SYSTEMS = { sol: { systemAddress: 10477373803, systemName: 'Sol', systemX: 0, systemY: 0, systemZ: 0 },
+    lave: { systemAddress: 5306655, systemName: 'Lave', systemX: 75.7, systemY: 48.75, systemZ: 68.2 },
     'lhs 20': { systemAddress: 3307124605658, systemName: 'LHS 20', systemX: 11.19, systemY: -37.38, systemZ: -31.84 } };
 
 function ardent(p) {
@@ -63,14 +64,22 @@ const station = o => ({ type: 'Coriolis Starport', system_name: 'Near', distance
 function stations(query) {
     stationQueries.push(query);
     const all = [
-        station({ name: 'Small Outpost', type: 'Outpost', large_pads: 0, distance: 3, modules: [FSD_6A, SCOOP_6A, MGC_ANACONDA], ships: [] }),
-        station({ name: 'Near Dock', distance: 5, modules: [FSD_6A, MGC_SIDEWINDER], ships: [ANACONDA, COBRA] }),
+        station({ name: 'Small Outpost', type: 'Outpost', large_pads: 0, distance: 3, modules: [FSD_6A, SCOOP_6A, MGC_ANACONDA], ships: [],
+            services: ['Market', 'Refuel', 'Black Market'] }),
+        station({ name: 'Near Dock', distance: 5, modules: [FSD_6A, MGC_SIDEWINDER], ships: [ANACONDA, COBRA],
+            services: ['Market', 'Refuel', 'Material Trader', 'Shipyard'] }),
         station({ name: 'Crater Works', type: 'Planetary Port', is_planetary: true, body_name: 'Near 1', distance: 7,
-            modules: [FSD_6A, SCOOP_6A, MGC_ANACONDA], ships: [ANACONDA], shipyard_updated_at: new Date(Date.now() - 3 * 86400e3).toISOString() }),
-        station({ name: 'Far Station', system_name: 'Further', distance: 9, modules: [FSD_6A, SCOOP_6A, MGC_SIDEWINDER], ships: [COBRA] }),
+            modules: [FSD_6A, SCOOP_6A, MGC_ANACONDA], ships: [ANACONDA], shipyard_updated_at: new Date(Date.now() - 3 * 86400e3).toISOString(),
+            services: ['Market', 'Outfitting', 'Material Trader', 'Technology Broker', 'Universal Cartographics'] }),
+        station({ name: 'Far Station', system_name: 'Further', distance: 9, modules: [FSD_6A, SCOOP_6A, MGC_SIDEWINDER], ships: [COBRA],
+            services: ['Market', 'Technology Broker'] }),
         station({ name: 'Core Yard', system_name: 'Further', distance: 11, ships: [], modules: [
             mod('Int_Engine_Size7_Class5', 'Thrusters', 7, 'A', 51289890), mod('Int_Powerplant_Size8_Class5', 'Power Plant', 8, 'A', 162586486),
-            mod('Int_Hyperdrive_Overcharge_Size6_Class5', 'Frame Shift Drive (SCO)', 6, 'A', 16179531), mod('Int_PowerDistributor_Size8_Class5', 'Power Distributor', 8, 'A', 25828146)] })
+            mod('Int_Hyperdrive_Overcharge_Size6_Class5', 'Frame Shift Drive (SCO)', 6, 'A', 16179531), mod('Int_PowerDistributor_Size8_Class5', 'Power Distributor', 8, 'A', 25828146)],
+            services: ['Market', 'Outfitting'] }),
+        // Spansh has no service list for this one
+        station({ name: 'Mystery Dock', type: 'Planetary Outpost', is_planetary: true, body_name: 'Further 2 a', system_name: 'Further',
+            distance: 13, modules: [], ships: [] })
     ];
     return { count: all.length, size: query.size, page: query.page, results: query.page === 0 ? all : [] };
 }
@@ -91,6 +100,7 @@ function spansh(type, query) {
 }
 
 const J = o => JSON.stringify({ timestamp: '2026-10-26T10:00:00Z', ...o });
+const hoursFromNow = h => new Date(Date.now() + h * 3600e3).toISOString();   // missions must not be expired while testing
 const JOURNAL = [
     J({ event: 'Fileheader' }),
     // flown earlier: a Cobra with known loadout
@@ -98,10 +108,31 @@ const JOURNAL = [
     J({ event: 'Loadout', Ship: 'CobraMkIII', ShipID: 9, ShipName: 'Digger', MaxJumpRange: 22.5, CargoCapacity: 36,
         Modules: [{ Slot: 'FrameShiftDrive', Item: 'int_hyperdrive_size4_class2' }] }),
     J({ event: 'Loadout', Ship: 'Hauler', ShipID: 11, ShipName: 'Old Bus', MaxJumpRange: 18, CargoCapacity: 22, Modules: [] }),
+    // no slot sizes in the game data for this one: the app has to go by the loadout, which leaves slots empty
+    J({ event: 'Loadout', Ship: 'anacondamkii', ShipID: 12, ShipName: 'Zwei', MaxJumpRange: 30, CargoCapacity: 128,
+        Modules: [{ Slot: 'PowerPlant', Item: 'int_powerplant_size7_class5' }, { Slot: 'MainEngines', Item: 'int_engine_size7_class5' },
+            { Slot: 'FrameShiftDrive', Item: 'int_hyperdrive_size6_class5' }, { Slot: 'LifeSupport', Item: 'int_lifesupport_size5_class5' },
+            { Slot: 'PowerDistributor', Item: 'int_powerdistributor_size7_class5' }, { Slot: 'Radar', Item: 'int_sensors_size5_class5' },
+            { Slot: 'FuelTank', Item: 'int_fueltank_size5_class3' },
+            { Slot: 'LargeHardpoint1', Item: 'hpt_beamlaser_fixed_large' }, { Slot: 'MediumHardpoint1', Item: 'hpt_pulselaser_fixed_medium' },
+            { Slot: 'Slot01_Size6', Item: 'int_cargorack_size6_class1' }, { Slot: 'Military01', Item: 'int_hullreinforcement_size5_class2' },
+            { Slot: 'Armour', Item: 'anacondamkii_armour_grade1' }, { Slot: 'CargoHatch', Item: 'modularcargobaydoor' }] }),
     J({ event: 'LoadGame', FID: 'F4242', Commander: 'Fuxy', Ship: 'Anaconda', ShipID: 7, ShipName: 'Alopex', ShipIdent: 'AL-01' }),
     J({ event: 'Loadout', Ship: 'anaconda', ShipID: 7, ShipName: 'Alopex', ShipIdent: 'AL-01', MaxJumpRange: 41.237, CargoCapacity: 400,
         Modules: [{ Slot: 'FrameShiftDrive', Item: 'int_hyperdrive_size6_class3' },
             { Item: 'int_passengercabin_size6_class1' }, { Item: 'int_passengercabin_size5_class4' }] }),
+    J({ event: 'MissionAccepted', MissionID: 101, Name: 'Mission_PassengerBulk', LocalisedName: 'Sightseeing tour',
+        Faction: 'Sol Workers', PassengerCount: 20, PassengerType: 'Tourist',
+        DestinationSystem: 'Lave', DestinationStation: 'Lave Station', Reward: 4000000, Expiry: hoursFromNow(70) }),
+    J({ event: 'MissionAccepted', MissionID: 102, Name: 'Mission_PassengerVIP', LocalisedName: 'VIP transport',
+        Faction: 'Sol Workers', PassengerCount: 10, PassengerVIPs: true, PassengerWanted: true, PassengerType: 'CEO',
+        DestinationSystem: 'Lave', DestinationStation: 'Lave Station', Reward: 9000000, Expiry: hoursFromNow(30) }),
+    J({ event: 'MissionAccepted', MissionID: 103, Name: 'Mission_Delivery', LocalisedName: 'Deliver gold',
+        Faction: 'Sol Workers', Commodity: '$Gold_Name;', Commodity_Localised: 'Gold', Count: 50,
+        DestinationSystem: 'Lave', DestinationStation: 'Lave Station', Reward: 1200000, Expiry: hoursFromNow(90) }),
+    J({ event: 'MissionAccepted', MissionID: 104, Name: 'Mission_Massacre', LocalisedName: 'Thin out the pirates',
+        Faction: 'Sol Workers', KillCount: 12, Target: 'Pirates', TargetFaction: 'Leesti Gang',
+        DestinationSystem: 'Leesti', Reward: 2500000, Expiry: hoursFromNow(50) }),
     J({ event: 'Location', StarSystem: 'Sol', Docked: true, StationName: 'Abraham Lincoln' }),
     J({ event: 'Cargo', Vessel: 'Ship', Count: 64 })
 ].join('\r\n') + '\r\n';
@@ -151,7 +182,7 @@ test('the intro reports what the journal says, and a click skips it', async () =
     assert.equal(await win.textContent('#intro-journal'), 'ONLINE');
     assert.equal(await win.textContent('#intro-cmdr'), 'CMDR Fuxy');
     assert.equal(await win.textContent('#intro-loc'), 'Sol');
-    assert.equal(await win.textContent('#intro-fleet'), '3 SHIPS · Anaconda ACTIVE');
+    assert.equal(await win.textContent('#intro-fleet'), '4 SHIPS · Anaconda ACTIVE');
     assert.equal(await win.textContent('#intro-welcome'), 'WELCOME BACK, CMDR Fuxy');
     assert.equal(await win.$$eval('#intro-fox polygon', shards => shards.length), 25);
     const pkg = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
@@ -397,12 +428,15 @@ test('outfitting: the nearest station that sells every part on the list', async 
     await pickPart('mil grade', 'Military Grade Composite');
     assert.equal(await win.inputValue('#outfit-variant'), 'anaconda_armour_grade3');
     await win.click('[data-action="addOutfitPart"]');
-    assert.match(await win.$eval('#outfit-parts', e => e.innerText), /6A Frame Shift Drive[\s\S]*6A Fuel Scoop[\s\S]*Military Grade Composite \(Anaconda\)/i);
-    // parts that do not fit another ship are marked on the list
+    // grouped by slot type in the order of the game; bulkheads are core internals
+    assert.deepEqual(await win.$$eval('#outfit-parts .part-group-label', els => els.map(e => e.textContent)), ['Core internal', 'Optional internal']);
+    assert.match(await win.$eval('#outfit-parts', e => e.innerText), /Core internal\s+Military Grade Composite \(Anaconda\)[\s\S]*6A Frame Shift Drive[\s\S]*Optional internal\s+6A Fuel Scoop/i);
+    // every ship keeps its own list
     await win.selectOption('#outfit-ship', 'type:cobramkiii');
-    assert.equal(await win.$$eval('#outfit-parts .no-fit', chips => chips.length), 3);
+    assert.equal(await win.$$eval('#outfit-parts .part-chip', chips => chips.length), 0);
+    assert.match(await win.textContent('#outfit-parts'), /No parts for the Cobra Mk III yet[\s\S]*1 other ship has one/i);
     await win.selectOption('#outfit-ship', 'fleet:7');
-    assert.equal(await win.$$eval('#outfit-parts .no-fit', chips => chips.length), 0);
+    assert.equal(await win.$$eval('#outfit-parts .part-chip', chips => chips.length), 3, 'the list of the Anaconda is back');
 
     await win.click('[data-action="searchOutfit"]');
     await win.waitForSelector('#outfit-results .accordion-item, #outfit-results .info-box, #outfit-results .warning-box');
@@ -445,7 +479,7 @@ test('outfitting: the nearest station that sells every part on the list', async 
 
     await win.click('[data-remove-part="int_guardianfsdbooster_size5"]');
     assert.deepEqual(JSON.parse(await win.evaluate(() => localStorage.getItem('alopex_outfit_parts'))),
-        ['int_hyperdrive_size6_class5', 'int_fuelscoop_size6_class5', 'anaconda_armour_grade3']);
+        { 'fleet:7': ['int_hyperdrive_size6_class5', 'int_fuelscoop_size6_class5', 'anaconda_armour_grade3'] });
 });
 
 test('outfitting: the station can also have to sell the ship', async () => {
@@ -487,11 +521,14 @@ test('outfitting: the A-rated core package follows the chosen ship', async () =>
     const chip = () => win.textContent('#outfit-parts .part-package');
     await win.click('[data-action="addCorePackage"]');
     assert.match(await chip(), /Core package A: 7A Thrusters · 8A Power Plant · 6A FSD \(SCO\) · 8A Power Distributor/);
+    // on another ship the package takes that ship's slot sizes
     await win.selectOption('#outfit-ship', 'type:cobramkiii');
+    await win.click('[data-action="addCorePackage"]');
     assert.match(await chip(), /Core package A: 4A Thrusters · 4A Power Plant · 4A FSD \(SCO\) · 3A Power Distributor/);
+    await win.click('[data-remove-part="package:core-a"]');
     await win.selectOption('#outfit-ship', 'type:mediumtransport01');
-    assert.match(await chip(), /slot sizes of this ship unknown/);
-    assert.equal(await win.$$eval('#outfit-parts .no-fit', chips => chips.length), 1);
+    await win.click('[data-action="addCorePackage"]');
+    assert.equal(await win.$$eval('#outfit-parts .part-chip', chips => chips.length), 0, 'a ship without slot data cannot have the package');
     await win.selectOption('#outfit-ship', 'fleet:7');
     await win.click('[data-action="addCorePackage"]');
     assert.equal(await win.$$eval('#outfit-parts .part-chip', chips => chips.length), 1, 'the package goes on the list once');
@@ -503,8 +540,279 @@ test('outfitting: the A-rated core package follows the chosen ship', async () =>
     const text = await win.$eval('#outfit-results', e => e.innerText);
     assert.match(text, /255,884,053 CR\s+all parts/i);   // 51,289,890 + 162,586,486 + 16,179,531 + 25,828,146
     assert.match(text, /✓ 6A Frame Shift Drive \(SCO\): 16,179,531 CR/i);
-    assert.deepEqual(JSON.parse(await win.evaluate(() => localStorage.getItem('alopex_outfit_parts'))), ['package:core-a']);
+    assert.deepEqual(JSON.parse(await win.evaluate(() => localStorage.getItem('alopex_outfit_parts'))), { 'fleet:7': ['package:core-a'] });
     await win.click('[data-remove-part="package:core-a"]');
+});
+
+test('outfitting: parts sorted into categories', async () => {
+    const headings = () => win.$$eval('#outfit-suggest .combo-group', els => els.map(e => e.textContent));
+    const listed = () => win.$$eval('#outfit-suggest [data-part]', els => els.map(e => e.dataset.part));
+    // the category list: slot groups in the order of the game, with the number of parts that fit the ship
+    assert.deepEqual(await win.$$eval('#outfit-category optgroup', groups => groups.map(g => g.label)),
+        ['★ Special', 'Hardpoints', 'Utility mounts', 'Core internal', 'Optional internal']);
+    const options = await win.$$eval('#outfit-category option', els => els.map(e => e.textContent));
+    assert.match(options[0], /^All parts \(\d+\)$/);
+    assert.ok(options.includes('All hardpoints (44)') && options.some(o => /^Lasers \(\d+\)$/.test(o)), options.join());   // all but the Type-11's mining tool
+    assert.ok(options.some(o => /^★ Military slot \(\d+\)$/.test(o)) && !options.some(o => /^★ Only for/.test(o)), 'the Anaconda has one military slot, no parts of its own');
+    const anaconda = parseInt(options[0].match(/\d+/)[0], 10);
+    await win.selectOption('#outfit-ship', 'type:sidewinder');
+    const sidewinder = parseInt((await win.textContent('#outfit-category option')).match(/\d+/)[0], 10);
+    assert.ok(sidewinder < anaconda, `${sidewinder} parts fit a Sidewinder, ${anaconda} an Anaconda`);
+    await win.selectOption('#outfit-ship', 'fleet:7');
+
+    // picking a category opens the list of its parts
+    await win.selectOption('#outfit-category', 'Hardpoints/Lasers');
+    await win.waitForSelector('#outfit-suggest:not([hidden]) [data-part]');
+    assert.deepEqual(await headings(), ['Hardpoints · Lasers']);
+    assert.ok((await listed()).every(name => /Laser/.test(name)) && (await listed()).includes('Beam Laser'));
+    // within a category the search narrows it down; a part from another category is not found there
+    await win.selectOption('#outfit-category', 'Utility mounts');
+    await win.fill('#outfit-search', 'pulse');
+    assert.deepEqual(await listed(), ['Pulse Wave Analyser', 'Pulse Wave Xeno Scanner']);
+    await win.fill('#outfit-search', 'fsd');
+    assert.match(await win.textContent('#outfit-suggest'), /No matching part in Utility mounts fits this ship/);
+    await win.selectOption('#outfit-category', '');
+
+    // the name of a category finds all its parts, after the parts that carry the word in their name
+    await win.fill('#outfit-search', 'mining');
+    assert.deepEqual((await headings()).slice(0, 2), ['Hardpoints · Mining tools', 'Optional internal · Mining & refining']);
+    const mining = await listed();
+    assert.ok(mining.indexOf('Mining Laser') < mining.indexOf('Abrasion Blaster') && mining.includes('Refinery'), mining.join());
+    // the category with the best match comes first: the drive, not the wake scanner
+    await win.fill('#outfit-search', 'frame shift');
+    assert.equal((await headings())[0], 'Core internal · Power & drives');
+    await win.keyboard.press('Enter');
+    assert.equal(await win.inputValue('#outfit-search'), 'Frame Shift Drive');
+    // with a part chosen the list shows everything again, in the order of the game; Enter keeps the part
+    await win.click('#outfit-radius');
+    await win.click('#outfit-search');
+    assert.deepEqual((await headings()).slice(0, 2), ['★ Special · Military slot', 'Hardpoints · Anti-Xeno & Guardian']);
+    await win.keyboard.press('Enter');
+    assert.equal(await win.inputValue('#outfit-search'), 'Frame Shift Drive');
+    await win.click('[data-action="addOutfitPart"]');
+    await pickPart('beam', 'Beam Laser');
+    await win.click('[data-action="addOutfitPart"]');
+    assert.deepEqual(await win.$$eval('#outfit-parts .part-group-label', els => els.map(e => e.textContent)), ['Hardpoints', 'Core internal']);
+    while (await win.$('#outfit-parts [data-remove-part]')) await win.click('#outfit-parts [data-remove-part]');
+});
+
+test('outfitting: special slots and parts made for one ship come first and are starred', async () => {
+    const headings = () => win.$$eval('#outfit-suggest .combo-group', els => els.map(e => e.textContent));
+    const listed = () => win.$$eval('#outfit-suggest [data-part]', els => els.map(e => e.dataset.part));
+    // a part in its own category, with its star note
+    const note = name => win.$$eval('#outfit-suggest [role="option"]', (els, n) => els.filter(e => e.dataset.part === n)
+        .map(e => e.querySelector('.part-special')).filter(Boolean).map(e => e.textContent).join(), name);
+    // a star behind every ship with special slots or parts of its own
+    const shipOption = value => win.$eval(`#outfit-ship option[value="${value}"]`, o => o.textContent);
+    assert.equal(await shipOption('type:lakonminer'), 'Type-11 Prospector ★');
+    assert.equal(await shipOption('type:federation_gunship'), 'Federal Gunship ★');
+    assert.equal(await shipOption('type:sidewinder'), 'Sidewinder');
+    assert.match(await shipOption('fleet:7'), /\(Anaconda\) ★$/);
+
+    await win.selectOption('#outfit-ship', 'type:lakonminer');
+    assert.match(await win.textContent('#outfit-ship-info'), new RegExp('★ Special slots: 4 mining hardpoints \\(sizes 3, 2, 1\\), '
+        + '1 limpet controller slot \\(size 5\\), 1 hangar slot \\(size 5\\) · ★ Only for this ship: Mining Volley Repeater, Mk II Mining Multi-Limpet Controller'));
+    // the ★ Special categories head the category list
+    const options = await win.$$eval('#outfit-category option', els => els.map(e => e.textContent));
+    assert.deepEqual(options.slice(1, 6).map(o => o.replace(/ \(\d+\)$/, '')),
+        ['★ All special parts', '★ Only for the Type-11 Prospector', '★ Mining hardpoints', '★ Limpet controller slot', '★ Hangar slot']);
+    await win.selectOption('#outfit-category', 'special');
+    await win.waitForSelector('#outfit-suggest:not([hidden]) [data-part]');
+    assert.deepEqual(await headings(), ['★ Special · Only for the Type-11 Prospector', '★ Special · Mining hardpoints',
+        '★ Special · Limpet controller slot', '★ Special · Hangar slot']);
+    await win.selectOption('#outfit-category', 'special/own');
+    assert.deepEqual(await listed(), ['Mining Volley Repeater', 'Mk II Mining Multi-Limpet Controller']);
+    // all parts: the special ones first, and again in their own category with a star
+    await win.selectOption('#outfit-category', '');
+    await win.fill('#outfit-search', 'volley');
+    assert.deepEqual(await headings(), ['★ Special · Only for the Type-11 Prospector', '★ Special · Mining hardpoints', 'Hardpoints · Mining tools']);
+    assert.equal(await note('Mining Volley Repeater'), '★ only this ship, mining hardpoint');
+    await win.fill('#outfit-search', 'mining laser');
+    assert.ok((await listed()).includes('Mining Volley Repeater'));
+    assert.equal(await note('Mining Laser'), '★ mining hardpoint');
+    await win.fill('#outfit-search', 'mk2 limpet');
+    assert.deepEqual([...new Set(await listed())], ['Mk II Mining Multi-Limpet Controller']);
+    assert.equal((await headings())[0], '★ Special · Only for the Type-11 Prospector');
+    // the mining hardpoints take mining tools only: lasers fit the size 2 and 1 hardpoints
+    await pickPart('beam', 'Beam Laser');
+    const beams = await variantLabels();
+    assert.ok(beams.some(l => /Medium/.test(l)) && !beams.some(l => /Large|Huge/.test(l)), beams.join());
+    await pickPart('volley', 'Mining Volley Repeater');
+    assert.deepEqual(await variantLabels(), ['3C · Large Fixed']);
+    await win.click('[data-action="addOutfitPart"]');
+
+    // military slots: reinforcements and shield cell banks, starred in their own category too
+    await win.selectOption('#outfit-ship', 'type:federation_gunship');
+    assert.match(await win.textContent('#outfit-ship-info'), /★ Special slots: 3 military slots \(size 4\)$/);
+    assert.equal(await win.$$eval('#outfit-parts .part-chip', chips => chips.length), 0, 'the repeater stays on the list of the Type-11');
+    await win.selectOption('#outfit-category', 'special/military');
+    const military = await listed();
+    assert.ok(military.includes('Hull Reinforcement Package') && military.includes('Shield Cell Bank') && !military.includes('Shield Generator'), military.join());
+    assert.match(await win.textContent('#outfit-suggest [data-part="Hull Reinforcement Package"] .combo-meta'), /^sizes 1–4$/, 'sizes of the military slots');
+    await win.selectOption('#outfit-category', 'Optional internal/Shields & hull');
+    assert.equal(await note('Hull Reinforcement Package'), '★ military slot');
+    assert.equal(await note('Shield Generator'), '');
+    await win.selectOption('#outfit-category', '');
+    await win.selectOption('#outfit-ship', 'fleet:7');
+    await win.fill('#outfit-search', 'volley');
+    assert.match(await win.textContent('#outfit-suggest'), /No matching part fits this ship/);
+    await win.selectOption('#outfit-ship', 'type:lakonminer');
+    await win.click('[data-remove-part="hpt_miningtoolv2_fixed_large"]');
+    await win.selectOption('#outfit-ship', 'fleet:7');
+});
+
+test('outfitting: a list saved earlier is taken over and checked against the ship', async () => {
+    const chips = () => win.$$eval('#outfit-parts .part-chip', els => els.map(e => e.textContent.replace('×', '').trim()));
+    const seed = parts => win.evaluate(saved => {
+        localStorage.setItem('alopex_outfit_parts', JSON.stringify(saved));
+        readOutfitParts();
+    }, parts);
+
+    // one list for every ship, the way ALOPEX up to 1.0.17 saved it: it becomes the list of the ship shown
+    await seed(['int_fuelscoop_size6_class5', 'package:core-a']);
+    // grouped by slot type, so the core package comes before the scoop
+    assert.deepEqual(await chips(), ['Core package A: 7A Thrusters · 8A Power Plant · 6A FSD (SCO) · 8A Power Distributor', '6A Fuel Scoop']);
+    await win.selectOption('#outfit-ship', 'type:cobramkiii');
+    assert.deepEqual(await chips(), [], 'the other ships did not get it too');
+    await win.selectOption('#outfit-ship', 'fleet:7');
+    // the next change writes it in the new shape
+    await win.click('[data-remove-part="package:core-a"]');
+    assert.deepEqual(JSON.parse(await win.evaluate(() => localStorage.getItem('alopex_outfit_parts'))),
+        { 'fleet:7': ['int_fuelscoop_size6_class5'] });
+
+    // a saved part that does not fit any more, and a package of a ship whose slot sizes are unknown
+    await seed({
+        'type:sidewinder': ['int_hyperdrive_size6_class5', 'hpt_miningtoolv2_fixed_large'],
+        'type:mediumtransport01': ['package:core-a']
+    });
+    await win.selectOption('#outfit-ship', 'type:sidewinder');
+    assert.equal(await win.$$eval('#outfit-parts .no-fit', els => els.length), 2, 'too large for the Sidewinder, and made for the Type-11');
+    await win.selectOption('#outfit-ship', 'type:mediumtransport01');
+    assert.match(await win.textContent('#outfit-parts .part-package'), /slot sizes of this ship unknown/);
+    assert.equal(await win.$$eval('#outfit-parts .no-fit', els => els.length), 1);
+
+    // parts this ALOPEX does not know are dropped
+    await seed({ 'fleet:7': ['int_fuelscoop_size6_class5', 'no_such_module'] });
+    await win.selectOption('#outfit-ship', 'fleet:7');
+    assert.deepEqual(await chips(), ['6A Fuel Scoop']);
+    await win.click('[data-remove-part="int_fuelscoop_size6_class5"]');
+    assert.deepEqual(JSON.parse(await win.evaluate(() => localStorage.getItem('alopex_outfit_parts'))), {}, 'an emptied list is not kept');
+});
+
+test('outfitting: slot sizes from the journal for a ship the game data does not cover', async () => {
+    const sizes = async () => (await variantLabels()).map(l => parseInt(l, 10));
+    await win.selectOption('#outfit-ship', 'type:anacondamkii');
+    assert.match(await win.textContent('#outfit-ship-info'), /slot sizes unknown for this ship, all sizes shown/,
+        'nothing is known about a ship that is not in the fleet');
+
+    await win.selectOption('#outfit-ship', 'fleet:12');
+    assert.match(await win.textContent('#outfit-ship-info'), /slot sizes from your journal, empty slots are not in it/);
+
+    // the seven core slots are always in a loadout, so their sizes are certain: nothing larger is offered
+    await pickPart('power plant', 'Power Plant');
+    assert.equal(Math.max(...await sizes()), 7, 'the journal shows a size 7 power plant slot');
+    assert.equal(await win.inputValue('#outfit-variant'), 'int_powerplant_size7_class5');
+
+    // everything else is a lower bound: a larger part is offered, but marked
+    await pickPart('beam', 'Beam Laser');
+    const labels = await variantLabels();
+    assert.equal(Math.max(...await sizes()), 4, 'huge ones too, the ship may have an empty hardpoint');
+    assert.ok(labels.filter(l => /Huge/.test(l)).every(l => l.includes('not in your loadout')), labels.join());
+    assert.ok(!labels.filter(l => /Large/.test(l)).some(l => l.includes('not in your loadout')), labels.join());
+    assert.equal(await win.inputValue('#outfit-variant'), 'hpt_beamlaser_fixed_large', 'the largest size the journal confirms');
+
+    // the suggestion list says so as well, and the part still goes on the list
+    await win.fill('#outfit-search', 'cargo rack');
+    assert.ok(!(await win.textContent('#outfit-suggest [data-part="Cargo Rack"] .combo-meta')).includes('not in your loadout'),
+        'sizes up to 6 go into the size 6 slot the journal shows');
+    await win.fill('#outfit-search', 'universal limpet');      // size 7 only, larger than any slot in the loadout
+    assert.match(await win.textContent('#outfit-suggest [data-part="Universal Multi Limpet Controller"] .combo-meta'),
+        /not in your loadout/);
+    await pickPart('universal limpet', 'Universal Multi Limpet Controller');
+    await win.click('[data-action="addOutfitPart"]');
+    assert.equal(await win.$$eval('#outfit-parts .part-chip.unsure', c => c.length), 1, 'marked as unconfirmed, not as wrong');
+    assert.equal(await win.$$eval('#outfit-parts .no-fit', c => c.length), 0);
+
+    // the A-rated core package works from the journal sizes
+    await win.click('[data-action="addCorePackage"]');
+    assert.match(await win.textContent('#outfit-parts .part-package'),
+        /Core package A: 7A Thrusters · 7A Power Plant · 6A FSD \(SCO\) · 7A Power Distributor/);
+    while (await win.$('#outfit-parts [data-remove-part]')) await win.click('#outfit-parts [data-remove-part]');
+    await win.selectOption('#outfit-ship', 'fleet:7');
+});
+
+test('services: the nearest station with the ticked services', async () => {
+    const titles = () => win.$$eval('#services-results .accordion-title', els => els.map(e => e.textContent));
+    await win.click('[data-tab="services"]');
+    assert.equal(await win.isChecked('#svc-material-trader'), true, 'one is ticked to start with');
+
+    await win.click('[data-action="searchServices"]');
+    await win.waitForSelector('#services-results .accordion-item, #services-results .info-box');
+    let query = stationQueries.at(-1);
+    assert.deepEqual(query.filters.services, { value: ['Material Trader'] });
+    assert.deepEqual(query.filters.distance, { min: 0, max: 50 });
+    assert.deepEqual(query.filters.has_large_pad, { value: true }, 'the pad size above applies');
+    assert.deepEqual(query.sort, [{ distance: { direction: 'asc' } }]);
+    assert.equal(query.reference_system, await win.inputValue('#current-system'));
+    // Small Outpost has no large pad; Far Station has no trader; Mystery Dock has no service list, so it stays
+    assert.deepEqual(await titles(), ['Near Dock', 'Crater Works', 'Mystery Dock']);
+    const text = await win.$eval('#services-results', e => e.innerText);
+    assert.match(text, /✓ Material Trader/i);
+    assert.match(text, /Also here: Market, Refuel, Shipyard/i, 'what else the station offers');
+    assert.match(text, /Spansh lists no services for this station/i);
+
+    // every ticked service has to be there
+    await win.check('#svc-tech-broker');
+    await win.click('[data-action="searchServices"]');
+    await win.waitForFunction(() => !document.querySelector('#services-results').textContent.includes('Near Dock'));
+    assert.deepEqual(stationQueries.at(-1).filters.services, { value: ['Material Trader', 'Technology Broker'] });
+    assert.deepEqual(await titles(), ['Crater Works', 'Mystery Dock']);
+
+    // the planetary switch applies here as well, and then nothing is left
+    await win.uncheck('#include-planetary');
+    await win.click('[data-action="searchServices"]');
+    await win.waitForSelector('#services-results .info-box');
+    query = stationQueries.at(-1);
+    assert.ok(!query.filters.type.value.includes('Planetary Port'));
+    assert.match(await win.textContent('#services-results'),
+        /No station within 50 LY of Sol \(pad L\) has Material Trader and Technology Broker/i);
+    await win.check('#include-planetary');
+    await win.uncheck('#svc-tech-broker');
+
+    await win.uncheck('#svc-material-trader');
+    await win.click('[data-action="searchServices"]');
+    await win.waitForFunction(() => document.querySelector('#services-results').textContent.includes('Tick at least one'));
+    await win.check('#svc-material-trader');
+});
+
+test('missions: what stacks into one trip, and which ship takes it', async () => {
+    const titles = () => win.$$eval('#missions-results .accordion-title', els => els.map(e => e.textContent));
+    await win.click('[data-tab="missions"]');
+    assert.match(await win.textContent('#mission-ship'), /\[ACTIVE\] Alopex \(Anaconda\)/);
+
+    await win.click('[data-action="searchMissions"]');
+    await win.waitForSelector('#missions-results .accordion-item, #missions-results .info-box');
+    assert.deepEqual(await titles(), ['Lave', 'Leesti'], 'the fullest stack first');
+    assert.match(await win.textContent('#missions-results h4'), /4 active missions · 2 destinations · 1 that stack/i);
+
+    const text = await win.$eval('#missions-results', e => e.innerText);
+    assert.match(text, /Needs:\s*30 passengers · 50 t cargo/i, 'the three Lave missions added up');
+    assert.match(text, /Station: Lave Station/i);
+    assert.match(text, /✓ The Alopex \(Anaconda\) takes the whole stack/i);
+    assert.match(text, /Needs:\s*12 kills/i, 'kills need no room');
+    assert.match(text, /VIP transport — 10 passengers \(CEO\) · VIP · wanted/i);
+    assert.match(text, /Deliver gold — 50 t Gold/i);
+    assert.match(text, /Thin out the pirates — 12 × Pirates \(Leesti Gang\)/i);
+    assert.match(text, /LY/, 'distance to Lave from the Ardent lookup');
+
+    // a ship that is too small, and the one from the fleet that would do it
+    await win.selectOption('#mission-ship', '9');
+    await win.click('[data-action="searchMissions"]');
+    await win.waitForFunction(() => document.querySelector('#missions-results').textContent.includes('is short'));
+    const small = await win.$eval('#missions-results', e => e.innerText);
+    assert.match(small, /✗ The Digger \(Cobra Mk III\) is short: 30 passengers, 0 seats, 50 t, a 36 t hold/i);
+    assert.match(small, /Takes it all: Alopex \(Anaconda\)/i);
+    await win.selectOption('#mission-ship', '7');
 });
 
 test('copy buttons write to the clipboard', async () => {

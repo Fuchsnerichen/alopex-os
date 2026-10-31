@@ -14,7 +14,7 @@ const { chromium } = createRequire(import.meta.url)('playwright');
 // Imperial theme (app/styles.css)
 const ICE = '#00d0ff', WHITE = '#ffffff', NAVY = '#050b14', NAVY_TOP = '#0f2240';
 
-// The same triangles as the intro (FOX_SHARDS in app/renderer.js): [points, fill opacity, kind]
+// The same triangles as the intro (FOX_SHARDS in app/js/intro.js): [points, fill opacity, kind]
 const FOX = [
     ['38,14 78,62 30,78', 0.85], ['162,14 122,62 170,78', 0.75],
     ['43,32 68,60 38,70', 0.9, 'inner'], ['157,32 132,60 162,70', 0.9, 'inner'],

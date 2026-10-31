@@ -1,0 +1,32 @@
+# Runs the whole test suite on every push to main and to a release branch.
+# Pull requests from forks deliberately do not run it: nobody else may write to this repository.
+name: Tests
+
+on:
+  push:
+    branches: [main, 'release/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1   # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1   # v7.1.0
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+
+      - name: Let the app open a window
+        # The end-to-end tests start the real app: it needs a screen (xvfb), and Ubuntu 24 blocks
+        # the user namespaces that Electron's sandbox is built on.
+        run: |
+          which xvfb-run || (sudo apt-get update && sudo apt-get install -y xvfb)
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+
+      - name: Unit and end-to-end tests
+        run: npm run test:linux

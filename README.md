@@ -3,7 +3,7 @@
 Von **CMDR Fuxy**.
 
 ALOPEX OS als eigenständiges Windows-Programm: eigenes Fenster, kein Browser, kein Node.js,
-kein Startskript. Live-Daten von Ardent (Märkte) und Spansh (Ring-Hotspots, Exobiologie, Ausrüstung) und
+kein Startskript. Live-Daten von Ardent (Märkte) und Spansh (Ring-Hotspots, Exobiologie, Ausrüstung, Stationsdienste) und
 das Elite-Journal laufen direkt in der App.
 
 ## Installieren
@@ -40,8 +40,33 @@ mit einem kostenpflichtigen Zertifikat signiert ist. *Weitere Informationen* →
   Depleted). Ringe ohne bekannte Reserve-Stufe fallen dann heraus; die Stufe steht bei jedem Ergebnis dabei.
 - **Outfitting:** Schiff wählen (aus der Flotte oder einen Schiffstyp), die gewünschten Teile auf die Liste
   setzen, suchen. Teile findest du per Texteingabe, auch mit Kürzeln wie *FSD*, *SCB*, *HRP* oder gleich mit
-  Größe (*6A scoop*). Angeboten werden nur Größen, die in einen Steckplatz des gewählten Schiffs passen; Teile
-  auf der Liste, die nicht passen, sind rot markiert. *A-rated core package* setzt Thrusters, Power Plant, Frame Shift Drive (SCO)
+  Größe (*6A scoop*). Die Teile sind nach Kategorien sortiert wie im Spiel (Hardpoints, Utility mounts, Core und
+  Optional internal, darin z. B. *Lasers*, *Mining tools*, *Shields & hull*): Unter *Category* eine Kategorie
+  wählen, um ihre Teile durchzublättern, oder den Kategorienamen eintippen (*mining*). Angeboten werden nur
+  Größen, die in einen Steckplatz des gewählten Schiffs passen; Teile auf der Liste, die nicht passen, sind rot
+  markiert. Schiffe mit Spezial-Plätzen (Military-Plätze, Mining-Hardpoints der Type-11 Prospector, Cargo-Plätze
+  der Panther Clipper Mk II …) oder eigenen Teilen haben in der Schiffsauswahl einen ★, darunter steht, welche
+  Plätze es sind. In der Teileliste kommt die Kategorie *★ Special* zuerst, getrennt nach Art des Platzes und
+  „Only for this ship“ (z. B. Mining Volley Repeater und Mk II Mining Multi-Limpet Controller der Type-11).
+  Dieselben Teile stehen auch in ihrer normalen Kategorie, dort mit ★ gekennzeichnet. *mk2* findet alle Mk-II-Teile.
+  Jedes Schiff hat seine eigene Teileliste, die auch nach einem Neustart erhalten bleibt: Der Mining-Ausbau der
+  Type-11 und der Explorer-Ausbau der Anaconda liegen also nebeneinander.
+  Für Schiffe, für die es noch keine Steckplatz-Daten gibt (Anaconda Mk II, Lynx Highliner), liest die App die
+  Plätze aus dem Journal, sofern das Schiff in deiner Flotte ist. Ein Loadout nennt nur Plätze, in denen etwas
+  steckt, also sind die Kern-Plätze vollständig (ohne die fliegt kein Schiff), der Rest ist eine Untergrenze.
+  Deshalb wird dort nichts ausgeblendet: Teile jenseits der bekannten Plätze stehen weiter zur Auswahl und sind
+  als *not in your loadout* markiert.
+- **Missions:** Zeigt, welche angenommenen Missionen dasselbe Ziel haben und sich zu einer Fahrt bündeln
+  lassen, mit Gesamtbelohnung, Ablauf und dem, was der Stapel verlangt (Sitzplätze, Tonnen, Kills). Dazu die
+  Prüfung, ob das gewählte Schiff den ganzen Stapel nimmt — und wenn nicht, welches Schiff deiner Flotte es
+  täte. **Missionsangebote einer Station sind in keiner öffentlichen Datenquelle enthalten** (siehe unten),
+  die Auswertung läuft daher über die Missionen, die du bereits angenommen hast. Welche Kabinenklasse eine
+  Passagiermission verlangt, steht nicht im Journal; gezählt werden deshalb nur Sitzplätze.
+- **Services:** Die nächste Station mit bestimmten Diensten finden: Material Trader, Technology Broker,
+  Interstellar Factors, Universal Cartographics, Vista Genomics, Black Market und Search and Rescue. Mehrere
+  Haken bedeuten, dass eine Station alle davon haben muss. Die App prüft die Dienstliste jeder Station noch
+  einmal selbst; welche Art von Material Trader (raw, manufactured, encoded) eine Station hat, steht nicht in
+  den Daten. Landefeld, Fleet Carrier und Planetenstationen folgen den Einstellungen oben. *A-rated core package* setzt Thrusters, Power Plant, Frame Shift Drive (SCO)
   und Power Distributor in A auf die Liste, jeweils in der Größe, die das gewählte Schiff nimmt; wechselst du das
   Schiff, passt sich das Paket an. Die App zeigt die nächsten Stationen, die *alle* Teile verkaufen, mit Preisen. Bei Schiffen
   aus der Flotte steht dabei, was gerade eingebaut ist.
@@ -97,12 +122,28 @@ Unter Windows ist das der einfachste Weg. Unter Linux braucht der Installer zus�
 
 ### Neue Version veröffentlichen (Updates für alle)
 
-1. In `package.json` die `version` erhöhen und `npm run dist` ausführen.
-2. Auf GitHub unter *Releases → Draft a new release* ein Tag `v<version>` anlegen (z. B. `v1.0.12`),
+GitHub baut die Dateien selbst (`.github/workflows/release.yml`), hochladen muss man nichts:
+
+1. In `package.json` die `version` erhöhen, in `build/kurzanleitung.txt` den Abschnitt *Neu in …*
+   schreiben, beides nach `main` mergen.
+2. Auf GitHub unter *Releases → Draft a new release* ein Tag `v<version>` anlegen (z. B. `v1.0.18`),
    Titel `ALOPEX OS <version>`. Der Beschreibungstext erscheint in der App unter *What's new*.
-3. Aus `dist/` anhängen: `ALOPEX-OS-<version>-Setup.exe`, `ALOPEX-OS-<version>-Setup.exe.blockmap`,
-   `latest.yml` und `ALOPEX-OS-<version>-portable.exe`.
-4. *Publish release* (kein Entwurf, keine Vorabversion). Ab dann finden die installierten Apps das Update.
+3. *Publish release* (kein Entwurf, keine Vorabversion).
+
+Der Workflow baut daraufhin unter Windows aus genau dem getaggten Stand, prüft die Sicherheits-Fuses
+und dass `latest.yml` zur Setup-Datei passt, und hängt sechs Dateien an das Release: Setup, Blockmap,
+`latest.yml`, portable, `SHA256SUMS.txt` und die Kurzanleitung. Schlägt etwas fehl, bleibt das Release
+ohne Dateien, und niemand bekommt ein kaputtes Update angeboten.
+
+Stimmt das Tag nicht mit der `version` in `package.json` überein, bricht der Workflow sofort ab. Zum
+Ausprobieren ohne Release: *Actions → Release → Run workflow*, das baut und prüft alles, hängt aber
+nichts an.
+
+Nach dem Veröffentlichen meldet GitHub eine neue Version oft erst nach einigen Minuten; bis dahin zeigt
+*Check now* noch *Up to date*.
+
+Lokal von Hand bauen geht weiter: `npm run dist`, danach `node scripts/release-files.mjs` für
+Prüfsummen und Kurzanleitung.
 
 ## Aufbau
 
@@ -112,10 +153,14 @@ Unter Windows ist das der einfachste Weg. Unter Linux braucht der Installer zus�
 | `preload.cjs` | Die Brücke: genau die Funktionen, die die Oberfläche nutzen darf |
 | `lib/` | Ardent, Spansh, Warennamen, Journal, Updates und der gemeinsame Netzwerk-Helfer |
 | `app/` | Die Oberfläche (HTML, CSS, JavaScript, Schrift Rajdhani unter SIL OFL 1.1) |
+| `app/js/` | Die Skripte der Oberfläche, eine Datei pro Bereich: `constants`, `utils`, `api`, `audio`, `fleet`, `prefs`, `ui`, `journal`, `trade`, `passengers`, `missions`, `mining`, `exobio`, `outfitting`, `services`, `intro`, `updates` und `main` (Ereignisse und Start). Sie teilen sich einen Namensraum und laden in dieser Reihenfolge (`index.html`) |
 | `app/outfitting-data.js` | Modulliste für Outfitting, erzeugt aus EDCD FDevIDs `outfitting.csv` |
-| `app/ship-slots.js` | Steckplatz-Größen jedes Schiffs, erzeugt aus EDCD coriolis-data |
+| `app/ship-slots.js` | Steckplatz-Größen jedes Schiffs, Spezial-Steckplätze und Teile nur für ein Schiff, erzeugt aus EDCD coriolis-data |
 | `scripts/build-ship-slots.mjs` | Erzeugt `app/ship-slots.js` neu: `node scripts/build-ship-slots.mjs <Pfad>/coriolis-data <Pfad>/FDevIDs` |
 | `scripts/build-outfitting-data.mjs` | Erzeugt `app/outfitting-data.js` neu: `node scripts/build-outfitting-data.mjs <Pfad>/outfitting.csv` (bei neuen Schiffen oder Modulen) |
+| `.github/workflows/` | `tests.yml` lässt bei jedem Push nach `main` oder `release/*` die Tests laufen, `release.yml` baut ein veröffentlichtes Release unter Windows und hängt die Dateien an |
+| `build/kurzanleitung.txt` | Vorlage der Kurzanleitung für die Downloads; `%VERSION%` und die Prüfsummen setzt `scripts/release-files.mjs` ein |
+| `scripts/release-files.mjs` | Prüft den Build in `dist/` und schreibt `SHA256SUMS.txt` und die Kurzanleitung |
 | `test/` | Unit-Tests (`lib.test.mjs`) und End-to-End-Tests der echten App (`app.test.mjs`) |
 | `build/icon.*` | App-Icon, der Fuchskopf aus dem Intro: `icon.svg` (Zeichnung), `icon.png` (512 px), `icon.ico` (16–256 px, kleine Größen vereinfacht). Neu erzeugen mit `node scripts/build-icons.mjs` |
 | `LICENSE` | Nutzungsbedingungen (nur lesen) und Lizenzen von Schrift und Moduldaten |

@@ -1,0 +1,102 @@
+﻿ALOPEX OS %VERSION% - Kurzanleitung
+=================================
+von CMDR Fuxy
+
+ALOPEX OS ist ein Navigator für Elite Dangerous: Handelsrouten, Passagiermissionen,
+Mining-Hotspots, Exobiologie und Ausrüstung mit Live-Daten. Ein eigenes Programmfenster,
+kein Browser.
+
+Neu in 1.0.18:
+  - Outfitting: Die Teile sind nach Kategorien sortiert wie im Spiel (Hardpoints,
+    Utility mounts, Core und Optional internal, darin z. B. Lasers, Mining tools,
+    Shields & hull). Unter CATEGORY eine Kategorie wählen und ihre Teile durchblättern,
+    oder den Kategorienamen eintippen ("mining"). Die Teile-Liste ist ebenso gruppiert.
+  - Outfitting: Schiffe mit Spezial-Plätzen (z. B. Military-Plätze, Mining-Hardpoints
+    der Type-11 Prospector) haben in der Schiffsauswahl einen Stern, darunter steht,
+    welche Plätze es sind. Die Kategorie "★ Special" steht bei den Teilen ganz oben,
+    mit allem, was in diese Plätze passt, und den Teilen nur für dieses Schiff (bei
+    der Type-11: Mining Volley Repeater, Mk II Mining Multi-Limpet Controller). Dieselben
+    Teile stehen auch in ihrer normalen Kategorie, dort mit Stern. "mk2" findet alle
+    Mk-II-Teile.
+  - Outfitting: Jedes Schiff hat seine eigene Teileliste, auch nach einem Neustart. Der
+    Mining-Ausbau der Type-11 und der Explorer-Ausbau der Anaconda liegen nebeneinander.
+  - Outfitting: Für Schiffe ohne Steckplatz-Daten (Anaconda Mk II, Lynx Highliner) nimmt
+    die App die Plätze aus deinem Journal, wenn das Schiff in deiner Flotte ist. Teile, die
+    dort in keinen Platz passen, verschwinden nicht, sondern stehen mit dem Hinweis
+    "not in your loadout" dabei: ein leerer Platz steht nicht im Journal.
+  - Neuer Tab "Missions": zeigt, welche deiner angenommenen Missionen dasselbe Ziel haben
+    und sich zu einer Fahrt bündeln lassen, und ob dein Schiff den ganzen Stapel nimmt.
+    Wenn nicht, steht dabei, welches Schiff deiner Flotte es täte. Was eine Station an
+    Missionen anbietet, steht in keiner öffentlichen Datenquelle - das kann keine App.
+  - Neuer Tab "Services": findet die nächste Station mit Material Trader, Technology
+    Broker, Interstellar Factors, Universal Cartographics, Vista Genomics, Black Market
+    oder Search and Rescue. Mehrere Haken heißt: eine Station muss alle davon haben.
+  - Updates: Klappt die Update-Prüfung nicht, steht unter UPDATES jetzt, woran es liegt
+    (offline, GitHub ausgelastet, Datei fehlt im Release ...), statt "Up to date".
+
+Seit 1.0.11:
+  - Mining: Unter RESERVE LEVEL wählst du, welche Ringe in Frage kommen (Pristine,
+    Major, Common, Low, Depleted). Die Reserve-Stufe steht bei jedem Ergebnis dabei.
+  - Outfitting: Button "+ A-rated core package" setzt Thrusters, Power Plant, Frame
+    Shift Drive (SCO) und Power Distributor in A auf die Liste, jeweils in der Größe,
+    die das gewählte Schiff nimmt.
+  - Outfitting: Teile per Texteingabe suchen, auch mit Kürzeln (FSD, SCB, HRP) oder
+    gleich mit Größe ("6A scoop" + Enter). Angeboten werden nur Größen, die in das
+    gewählte Schiff passen.
+  - Updates: Die App sucht selbst nach neuen Versionen (grüner Button oben "Update to
+    vX"). Unter UPDATES lässt sich "Install updates automatically" einschalten.
+
+
+1. DATEI PRÜFEN (empfohlen, 1 Minute)
+-------------------------------------
+So siehst du, dass die Datei unverändert von mir kommt.
+
+  a) Rechtsklick auf den Ordner mit der heruntergeladenen Datei > "Im Terminal öffnen"
+  b) Eingeben (Dateiname anpassen):
+       Get-FileHash .\ALOPEX-OS-%VERSION%-Setup.exe
+  c) Der angezeigte "Hash" muss genau so lauten:
+
+     ALOPEX-OS-%VERSION%-Setup.exe
+     %SETUP_SHA256%
+
+     ALOPEX-OS-%VERSION%-portable.exe
+     %PORTABLE_SHA256%
+
+  Weicht er ab: NICHT starten und mir Bescheid geben.
+
+
+2. INSTALLIEREN
+---------------
+  Setup.exe    = installiert für deinen Benutzer (ohne Admin-Rechte), mit Startmenü-
+                 und Desktop-Verknüpfung. Empfohlen, nur diese Version aktualisiert
+                 sich selbst.
+  portable.exe = ohne Installation, startet etwas langsamer. Kann sich nicht selbst
+                 aktualisieren; der Update-Button öffnet dort die Download-Seite.
+
+  Ältere Version installiert? Einfach die neue Setup.exe ausführen, sie ersetzt die alte.
+  Deine Einstellungen bleiben erhalten. Ab 1.0.11 kommen Updates von selbst.
+
+  Warnungen beim ersten Mal (die App ist nicht kostenpflichtig signiert):
+  - Browser meldet "wird selten heruntergeladen": "Behalten" wählen.
+  - Windows meldet "Der Computer wurde durch Windows geschützt":
+    "Weitere Informationen" > "Trotzdem ausführen".
+  - Firewall fragt nach Internetzugriff: zulassen (sonst keine Live-Daten).
+
+  Deinstallieren: Einstellungen > Apps > ALOPEX OS.
+
+
+3. BENUTZEN
+-----------
+  - Das Elite-Journal wird automatisch gefunden. Falls nicht: "Select Folder" und den
+    Ordner mit den Journal.*.log-Dateien wählen (normalerweise
+    C:\Users\<Name>\Saved Games\Frontier Developments\Elite Dangerous).
+  - Das Journal wird nur gelesen, nie verändert.
+  - Fenster schließen = Programm beendet.
+
+
+4. WAS DIE APP INS INTERNET SCHICKT
+-----------------------------------
+  Nur Suchanfragen für Live-Daten an Ardent Insight (Marktpreise), Spansh (Hotspots,
+  Exobiologie, Ausrüstung, Schiffe, Stationsdienste), GitHub (Liste der Warennamen) und die Update-
+  Prüfung bei GitHub (beim Start und alle 6 Stunden). Diese Dienste sehen dabei deine
+  IP-Adresse. Keine Journal-Inhalte, keine persönlichen Daten.

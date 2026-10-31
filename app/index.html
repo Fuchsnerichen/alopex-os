@@ -8,7 +8,7 @@
 </head>
 <body>
     <!-- Start intro: the arctic fox (Alopex lagopus) and the ship computer reporting what the journal says.
-         renderer.js (INTRO) runs it while the journal loads; a click or any key skips it. -->
+         js/intro.js runs it while the journal loads; a click or any key skips it. -->
     <div id="intro" class="intro" aria-hidden="true">
         <canvas id="intro-stars" class="intro-stars"></canvas>
         <div class="intro-flash"></div>
@@ -55,7 +55,7 @@
         </div>
     </header>
 
-    <!-- Shown once after ALOPEX OS updated itself (renderer.js, UPDATES). -->
+    <!-- Shown once after ALOPEX OS updated itself (js/updates.js). -->
     <div id="update-notice" class="update-notice" role="status" hidden>
         <div class="update-notice-head">
             <strong id="update-notice-title">ALOPEX OS was updated</strong>
@@ -126,6 +126,8 @@
         <button class="tab-btn" role="tab" aria-selected="false" data-tab="mining" data-sound>Mining</button>
         <button class="tab-btn" role="tab" aria-selected="false" data-tab="exobio" data-sound>Exobiology</button>
         <button class="tab-btn" role="tab" aria-selected="false" data-tab="outfit" data-sound>Outfitting</button>
+        <button class="tab-btn" role="tab" aria-selected="false" data-tab="services" data-sound>Services</button>
+        <button class="tab-btn" role="tab" aria-selected="false" data-tab="missions" data-sound>Missions</button>
     </div>
 
     <!-- Trade Tab -->
@@ -258,10 +260,14 @@
                 <div id="outfit-ship-info" class="field-note"></div>
             </div>
             <div class="input-group">
+                <label for="outfit-category">CATEGORY</label>
+                <select id="outfit-category"><option value="">All parts</option></select>
+            </div>
+            <div class="input-group">
                 <label for="outfit-search">PART</label>
                 <div class="combo">
                     <input type="text" id="outfit-search" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="outfit-suggest"
-                        autocomplete="off" spellcheck="false" placeholder="Search: FSD, fuel scoop, 6A scoop …">
+                        autocomplete="off" spellcheck="false" placeholder="Search: FSD, 6A scoop, lasers …">
                     <ul id="outfit-suggest" class="combo-list" role="listbox" aria-label="Matching parts" hidden></ul>
                 </div>
                 <div id="outfit-fitted" class="field-note"></div>
@@ -293,6 +299,53 @@
         <div id="outfit-results" class="results-container" aria-live="polite"></div>
     </div>
 
+    <div id="services" class="tab-content" role="tabpanel">
+        <h3>Services: the nearest station that has them</h3>
+        <div class="form-grid">
+            <div class="input-group">
+                <label id="svc-label">SERVICES (A STATION HAS TO HAVE EVERY TICKED ONE)</label>
+                <div class="service-list" role="group" aria-labelledby="svc-label">
+                    <label class="checkbox-row"><input type="checkbox" id="svc-material-trader" checked> Material Trader</label>
+                    <label class="checkbox-row"><input type="checkbox" id="svc-tech-broker"> Technology Broker</label>
+                    <label class="checkbox-row"><input type="checkbox" id="svc-interstellar-factors"> Interstellar Factors</label>
+                    <label class="checkbox-row"><input type="checkbox" id="svc-cartographics"> Universal Cartographics</label>
+                    <label class="checkbox-row"><input type="checkbox" id="svc-vista-genomics"> Vista Genomics</label>
+                    <label class="checkbox-row"><input type="checkbox" id="svc-black-market"> Black Market</label>
+                    <label class="checkbox-row"><input type="checkbox" id="svc-search-rescue"> Search and Rescue</label>
+                </div>
+            </div>
+            <div class="input-group">
+                <label for="svc-radius">MAX DISTANCE (LY, MAX 500)</label>
+                <input type="number" id="svc-radius" value="50" min="1" max="500">
+            </div>
+        </div>
+        <button data-action="searchServices" data-sound>Find the nearest station with these services</button>
+        <p class="source-note">Station services from the Spansh station search (collected via EDDN). The app checks the service list of every station again, so a result has all the ticked services. Landing pad from PAD SIZE above; Fleet Carriers and planetary stations follow the STATIONS switches. Which kind of Material Trader (raw, manufactured, encoded) a station has is not in the data.</p>
+        <div id="services-loading" class="loading-container">
+            <div class="loading-text">SCANNING STATION SERVICES...</div>
+            <div class="scanner-bar"></div>
+        </div>
+        <div id="services-results" class="results-container" aria-live="polite"></div>
+    </div>
+
+    <div id="missions" class="tab-content" role="tabpanel">
+        <h3>Missions: what stacks into one trip</h3>
+        <div class="form-grid">
+            <div class="input-group">
+                <label for="mission-ship">SHIP</label>
+                <select id="mission-ship"></select>
+                <div class="field-note">Seats and hold come from this ship's loadout in the journal.</div>
+            </div>
+        </div>
+        <button data-action="searchMissions" data-sound>Show mission stacks</button>
+        <p class="source-note">From your own journal: mission boards are not part of any public data, so no app can show what a station offers. This groups the missions you have <em>accepted</em> by destination — take one at the board, press the button, and see whether your ship still takes the whole stack. Which cabin class a passenger needs is not in the journal either, so passengers are counted as seats.</p>
+        <div id="missions-loading" class="loading-container">
+            <div class="loading-text">READING MISSION LOG...</div>
+            <div class="scanner-bar"></div>
+        </div>
+        <div id="missions-results" class="results-container" aria-live="polite"></div>
+    </div>
+
     <!-- Version and author are filled in by the app core when it serves this page (main.mjs). -->
     <footer class="app-footer">ALOPEX OS v%APP_VERSION% · by %APP_AUTHOR%</footer>
 
@@ -319,6 +372,24 @@
 
     <script src="outfitting-data.js"></script>
     <script src="ship-slots.js"></script>
-    <script src="renderer.js"></script>
+    <!-- Page scripts in load order: data and helpers first, each area after what it uses, main.js wires up and starts. -->
+    <script src="js/constants.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/fleet.js"></script>
+    <script src="js/prefs.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/journal.js"></script>
+    <script src="js/trade.js"></script>
+    <script src="js/passengers.js"></script>
+    <script src="js/mining.js"></script>
+    <script src="js/exobio.js"></script>
+    <script src="js/outfitting.js"></script>
+    <script src="js/services.js"></script>
+    <script src="js/missions.js"></script>
+    <script src="js/intro.js"></script>
+    <script src="js/updates.js"></script>
+    <script src="js/main.js"></script>
 </body>
 </html>
