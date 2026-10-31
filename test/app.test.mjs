@@ -98,6 +98,15 @@ const JOURNAL = [
     J({ event: 'Loadout', Ship: 'CobraMkIII', ShipID: 9, ShipName: 'Digger', MaxJumpRange: 22.5, CargoCapacity: 36,
         Modules: [{ Slot: 'FrameShiftDrive', Item: 'int_hyperdrive_size4_class2' }] }),
     J({ event: 'Loadout', Ship: 'Hauler', ShipID: 11, ShipName: 'Old Bus', MaxJumpRange: 18, CargoCapacity: 22, Modules: [] }),
+    // no slot sizes in the game data for this one: the app has to go by the loadout, which leaves slots empty
+    J({ event: 'Loadout', Ship: 'anacondamkii', ShipID: 12, ShipName: 'Zwei', MaxJumpRange: 30, CargoCapacity: 128,
+        Modules: [{ Slot: 'PowerPlant', Item: 'int_powerplant_size7_class5' }, { Slot: 'MainEngines', Item: 'int_engine_size7_class5' },
+            { Slot: 'FrameShiftDrive', Item: 'int_hyperdrive_size6_class5' }, { Slot: 'LifeSupport', Item: 'int_lifesupport_size5_class5' },
+            { Slot: 'PowerDistributor', Item: 'int_powerdistributor_size7_class5' }, { Slot: 'Radar', Item: 'int_sensors_size5_class5' },
+            { Slot: 'FuelTank', Item: 'int_fueltank_size5_class3' },
+            { Slot: 'LargeHardpoint1', Item: 'hpt_beamlaser_fixed_large' }, { Slot: 'MediumHardpoint1', Item: 'hpt_pulselaser_fixed_medium' },
+            { Slot: 'Slot01_Size6', Item: 'int_cargorack_size6_class1' }, { Slot: 'Military01', Item: 'int_hullreinforcement_size5_class2' },
+            { Slot: 'Armour', Item: 'anacondamkii_armour_grade1' }, { Slot: 'CargoHatch', Item: 'modularcargobaydoor' }] }),
     J({ event: 'LoadGame', FID: 'F4242', Commander: 'Fuxy', Ship: 'Anaconda', ShipID: 7, ShipName: 'Alopex', ShipIdent: 'AL-01' }),
     J({ event: 'Loadout', Ship: 'anaconda', ShipID: 7, ShipName: 'Alopex', ShipIdent: 'AL-01', MaxJumpRange: 41.237, CargoCapacity: 400,
         Modules: [{ Slot: 'FrameShiftDrive', Item: 'int_hyperdrive_size6_class3' },
@@ -151,7 +160,7 @@ test('the intro reports what the journal says, and a click skips it', async () =
     assert.equal(await win.textContent('#intro-journal'), 'ONLINE');
     assert.equal(await win.textContent('#intro-cmdr'), 'CMDR Fuxy');
     assert.equal(await win.textContent('#intro-loc'), 'Sol');
-    assert.equal(await win.textContent('#intro-fleet'), '3 SHIPS · Anaconda ACTIVE');
+    assert.equal(await win.textContent('#intro-fleet'), '4 SHIPS · Anaconda ACTIVE');
     assert.equal(await win.textContent('#intro-welcome'), 'WELCOME BACK, CMDR Fuxy');
     assert.equal(await win.$$eval('#intro-fox polygon', shards => shards.length), 25);
     const pkg = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
@@ -666,6 +675,48 @@ test('outfitting: a list saved earlier is taken over and checked against the shi
     assert.deepEqual(await chips(), ['6A Fuel Scoop']);
     await win.click('[data-remove-part="int_fuelscoop_size6_class5"]');
     assert.deepEqual(JSON.parse(await win.evaluate(() => localStorage.getItem('alopex_outfit_parts'))), {}, 'an emptied list is not kept');
+});
+
+test('outfitting: slot sizes from the journal for a ship the game data does not cover', async () => {
+    const sizes = async () => (await variantLabels()).map(l => parseInt(l, 10));
+    await win.selectOption('#outfit-ship', 'type:anacondamkii');
+    assert.match(await win.textContent('#outfit-ship-info'), /slot sizes unknown for this ship, all sizes shown/,
+        'nothing is known about a ship that is not in the fleet');
+
+    await win.selectOption('#outfit-ship', 'fleet:12');
+    assert.match(await win.textContent('#outfit-ship-info'), /slot sizes from your journal, empty slots are not in it/);
+
+    // the seven core slots are always in a loadout, so their sizes are certain: nothing larger is offered
+    await pickPart('power plant', 'Power Plant');
+    assert.equal(Math.max(...await sizes()), 7, 'the journal shows a size 7 power plant slot');
+    assert.equal(await win.inputValue('#outfit-variant'), 'int_powerplant_size7_class5');
+
+    // everything else is a lower bound: a larger part is offered, but marked
+    await pickPart('beam', 'Beam Laser');
+    const labels = await variantLabels();
+    assert.equal(Math.max(...await sizes()), 4, 'huge ones too, the ship may have an empty hardpoint');
+    assert.ok(labels.filter(l => /Huge/.test(l)).every(l => l.includes('not in your loadout')), labels.join());
+    assert.ok(!labels.filter(l => /Large/.test(l)).some(l => l.includes('not in your loadout')), labels.join());
+    assert.equal(await win.inputValue('#outfit-variant'), 'hpt_beamlaser_fixed_large', 'the largest size the journal confirms');
+
+    // the suggestion list says so as well, and the part still goes on the list
+    await win.fill('#outfit-search', 'cargo rack');
+    assert.ok(!(await win.textContent('#outfit-suggest [data-part="Cargo Rack"] .combo-meta')).includes('not in your loadout'),
+        'sizes up to 6 go into the size 6 slot the journal shows');
+    await win.fill('#outfit-search', 'universal limpet');      // size 7 only, larger than any slot in the loadout
+    assert.match(await win.textContent('#outfit-suggest [data-part="Universal Multi Limpet Controller"] .combo-meta'),
+        /not in your loadout/);
+    await pickPart('universal limpet', 'Universal Multi Limpet Controller');
+    await win.click('[data-action="addOutfitPart"]');
+    assert.equal(await win.$$eval('#outfit-parts .part-chip.unsure', c => c.length), 1, 'marked as unconfirmed, not as wrong');
+    assert.equal(await win.$$eval('#outfit-parts .no-fit', c => c.length), 0);
+
+    // the A-rated core package works from the journal sizes
+    await win.click('[data-action="addCorePackage"]');
+    assert.match(await win.textContent('#outfit-parts .part-package'),
+        /Core package A: 7A Thrusters · 7A Power Plant · 6A FSD \(SCO\) · 7A Power Distributor/);
+    while (await win.$('#outfit-parts [data-remove-part]')) await win.click('#outfit-parts [data-remove-part]');
+    await win.selectOption('#outfit-ship', 'fleet:7');
 });
 
 test('copy buttons write to the clipboard', async () => {

@@ -14,7 +14,7 @@ let fleetSeen = { storedShips: false, sold: new Set() };   // since the fleet wa
 // The journal scan reads only the newest files. Ships flown before that keep their last known loadout,
 // saved per commander in the app's storage.
 const FLEET_STORE = 'alopex_fleet';
-const SAVED_SHIP_FIELDS = ['id', 'name', 'ident', 'type', 'jump', 'cargo', 'pax', 'modules', 'system', 'loadoutAt'];
+const SAVED_SHIP_FIELDS = ['id', 'name', 'ident', 'type', 'jump', 'cargo', 'pax', 'modules', 'slots', 'system', 'loadoutAt'];
 
 function readSavedFleets() {
     try {

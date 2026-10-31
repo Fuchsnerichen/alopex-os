@@ -20,6 +20,10 @@ Neu in 1.0.18:
     Mk-II-Teile.
   - Outfitting: Jedes Schiff hat seine eigene Teileliste, auch nach einem Neustart. Der
     Mining-Ausbau der Type-11 und der Explorer-Ausbau der Anaconda liegen nebeneinander.
+  - Outfitting: Für Schiffe ohne Steckplatz-Daten (Anaconda Mk II, Lynx Highliner) nimmt
+    die App die Plätze aus deinem Journal, wenn das Schiff in deiner Flotte ist. Teile, die
+    dort in keinen Platz passen, verschwinden nicht, sondern stehen mit dem Hinweis
+    "not in your loadout" dabei: ein leerer Platz steht nicht im Journal.
   - Updates: Klappt die Update-Prüfung nicht, steht unter UPDATES jetzt, woran es liegt
     (offline, GitHub ausgelastet, Datei fehlt im Release ...), statt "Up to date".
 

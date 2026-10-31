@@ -50,7 +50,12 @@ mit einem kostenpflichtigen Zertifikat signiert ist. *Weitere Informationen* →
   „Only for this ship“ (z. B. Mining Volley Repeater und Mk II Mining Multi-Limpet Controller der Type-11).
   Dieselben Teile stehen auch in ihrer normalen Kategorie, dort mit ★ gekennzeichnet. *mk2* findet alle Mk-II-Teile.
   Jedes Schiff hat seine eigene Teileliste, die auch nach einem Neustart erhalten bleibt: Der Mining-Ausbau der
-  Type-11 und der Explorer-Ausbau der Anaconda liegen also nebeneinander. *A-rated core package* setzt Thrusters, Power Plant, Frame Shift Drive (SCO)
+  Type-11 und der Explorer-Ausbau der Anaconda liegen also nebeneinander.
+  Für Schiffe, für die es noch keine Steckplatz-Daten gibt (Anaconda Mk II, Lynx Highliner), liest die App die
+  Plätze aus dem Journal, sofern das Schiff in deiner Flotte ist. Ein Loadout nennt nur Plätze, in denen etwas
+  steckt, also sind die Kern-Plätze vollständig (ohne die fliegt kein Schiff), der Rest ist eine Untergrenze.
+  Deshalb wird dort nichts ausgeblendet: Teile jenseits der bekannten Plätze stehen weiter zur Auswahl und sind
+  als *not in your loadout* markiert. *A-rated core package* setzt Thrusters, Power Plant, Frame Shift Drive (SCO)
   und Power Distributor in A auf die Liste, jeweils in der Größe, die das gewählte Schiff nimmt; wechselst du das
   Schiff, passt sich das Paket an. Die App zeigt die nächsten Stationen, die *alle* Teile verkaufen, mit Preisen. Bei Schiffen
   aus der Flotte steht dabei, was gerade eingebaut ist.

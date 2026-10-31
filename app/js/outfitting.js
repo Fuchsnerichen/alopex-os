@@ -139,7 +139,42 @@ let suggestHits = [];       // part types shown in the suggestion list
 let suggestIndex = -1;      // highlighted suggestion
 let suggestVariant = null;  // "6a" typed with the part: preselected size and rating
 
-const shipSlots = type => SHIP_SLOTS[type] || null;
+// Journal slot names: the core slots in the order of SHIP_SLOTS.core, and the size of a hardpoint mount.
+const JOURNAL_CORE = { powerplant: 0, mainengines: 1, frameshiftdrive: 2, lifesupport: 3, powerdistributor: 4, radar: 5, fueltank: 6 };
+const JOURNAL_HARDPOINT = { tiny: 0, small: 1, medium: 2, large: 3, huge: 4 };
+
+// What the journal loadout of a fleet ship says about its slots, for ships the game data does not cover yet
+// (Anaconda Mk II, Lynx Highliner). A Loadout names only the slots with something in them, so this is a lower
+// bound: the ship may have more, and larger, empty ones. The seven core slots are always among them.
+function buildJournalSlots(ship) {
+    const core = new Array(7).fill(0), hardpoints = [], internal = [];
+    let utility = 0;
+    for (const [slot, symbol] of Object.entries(ship.slots || {})) {
+        const size = Number((MODULE_BY_SYMBOL.get(symbol) || {}).size) || 0;
+        let match;
+        if (JOURNAL_CORE[slot] !== undefined) core[JOURNAL_CORE[slot]] = size;
+        else if ((match = /^(tiny|small|medium|large|huge)hardpoint\d+$/.exec(slot))) {
+            if (match[1] === 'tiny') utility++;
+            else hardpoints.push(JOURNAL_HARDPOINT[match[1]]);
+        } else if ((match = /^slot\d+_size(\d)$/.exec(slot))) internal.push(Number(match[1]));
+        else if (/^military\d+$/.test(slot) && size) internal.push([size, 'military']);
+    }
+    if (core.some(size => !size)) return null;   // no ship flies without all seven: nothing to go by
+    hardpoints.sort((a, b) => b - a);
+    return { core, hardpoints, utility, internal, journal: true };
+}
+
+// Building this for every module would be wasteful, and a loadout only changes with the journal.
+let journalSlotsCache = { key: null, slots: null };
+function journalSlots(ship) {
+    const key = ship && ship.slots ? `${ship.id}|${ship.loadoutAt}` : null;
+    if (!key) return null;
+    if (journalSlotsCache.key !== key) journalSlotsCache = { key, slots: buildJournalSlots(ship) };
+    return journalSlotsCache.slots;
+}
+
+// The slots of a ship: from the game data, or from the journal for a fleet ship the data does not cover.
+const shipSlots = (type, ship) => SHIP_SLOTS[type] || (ship ? journalSlots(ship) : null);
 
 // A slot takes the module when it is large enough and, for a slot that takes only some modules
 // ([size, restriction], e.g. the mining hardpoints of the Type-11), the module is on its list.
@@ -149,8 +184,10 @@ const slotTakes = (slot, m, size) => (Array.isArray(slot) ? size <= slot[0] && S
 function fitsShip(m, slots) {
     if (!slots || m.armour) return true;
     const size = Number(m.size);
-    if (m.category === 'hardpoint') return slots.hardpoints.some(h => slotTakes(h, m, size));   // a small weapon also fits a larger hardpoint
-    if (m.category === 'utility') return slots.utility > 0;
+    // Slots read from the journal are a lower bound: a kind it showed nothing of says nothing about the ship.
+    const open = list => slots.journal && !list.length;
+    if (m.category === 'hardpoint') return open(slots.hardpoints) || slots.hardpoints.some(h => slotTakes(h, m, size));   // a small weapon also fits a larger hardpoint
+    if (m.category === 'utility') return slots.utility > 0 || Boolean(slots.journal);
     const core = CORE_SLOT[m.name];
     if (core !== undefined) {
         if (size <= slots.core[core]) return true;                                    // smaller core parts fit too
@@ -158,11 +195,17 @@ function fitsShip(m, slots) {
     } else if (m.category === 'standard') {
         return true;
     }
-    return slots.internal.some(s => slotTakes(s, m, size));
+    return open(slots.internal) || slots.internal.some(s => slotTakes(s, m, size));
 }
 
-// Can a ship of this type fit the module: its own armour only, parts made for other ships not, and a slot that takes it.
-const fitsType = (m, type) => (!m.armour || isArmourFor(m, type)) && (!m.ships || m.ships.includes(type)) && fitsShip(m, shipSlots(type));
+// Certain from the game data: a ship takes only its own armour, and no part made for another ship.
+const couldFit = (m, type) => (!m.armour || isArmourFor(m, type)) && (!m.ships || m.ships.includes(type));
+const fitsType = (m, type, ship) => couldFit(m, type) && fitsShip(m, shipSlots(type, ship));
+
+// Parts the ship certainly cannot take: only these are left out. Of slots read from the journal only the core
+// slots are complete, so a part beyond the others is marked instead of hidden.
+const coreOnly = m => CORE_SLOT[m.name] !== undefined && m.name !== 'Fuel Tank';
+const ruledOut = (m, slots) => !fitsShip(m, slots) && (!slots.journal || coreOnly(m));
 
 // Slots that take only some modules: the restriction in ship-slots.js without its number, and how the app names
 // one and several. Every ship has a planetary approach suite slot, so that one is not special.
@@ -206,23 +249,26 @@ const specialTakes = (slot, m, size) => slot.hardpoint === (m.category === 'hard
 // Part types that fit the chosen ship: { name, cat, home (its own category), special (kinds: OWN_PARTS and the
 // special slots it fits), specialSizes (sizes per kind), sizes, modules }
 function partTypes() {
-    const { type } = outfitShip();
+    const { type, ship } = outfitShip();
+    const slots = shipSlots(type, ship);
     const special = specialSlots(type);
     const types = new Map();
     for (const m of MODULES) {
-        if (!fitsType(m, type)) continue;
-        if (!types.has(m.name)) types.set(m.name, { name: m.name, cat: m.cat, home: m.cat, special: [], specialSizes: {}, sizes: [], modules: [] });
+        if (!couldFit(m, type) || ruledOut(m, slots)) continue;
+        if (!types.has(m.name)) types.set(m.name, { name: m.name, cat: m.cat, home: m.cat, special: [], specialSizes: {}, sizes: [], modules: [], fits: false });
         const part = types.get(m.name);
         const size = Number(m.size);
         part.sizes.push(size);
         part.modules.push(m);
+        if (fitsShip(m, slots)) part.fits = true;
         const kinds = special.filter(k => !m.armour && k.slots.some(slot => specialTakes(slot, m, size))).map(k => k.kind);
         for (const kind of m.ships ? [OWN_PARTS, ...kinds] : kinds) {
             if (!part.special.includes(kind)) part.special.push(kind);
             (part.specialSizes[kind] = part.specialSizes[kind] || []).push(size);
         }
     }
-    return [...types.values()];
+    // "beyond": no size of it is among the slots the journal showed, so only an empty slot could take it
+    return [...types.values()].map(part => ({ ...part, beyond: !part.fits }));
 }
 
 // The ★ Special categories of the ship, ahead of all others: its own parts first, then one per kind of special slot.
@@ -328,7 +374,8 @@ function renderSuggestions() {
     list.innerHTML = suggestHits.length
         ? suggestHits.map((p, i) => (i && suggestHits[i - 1].cat === p.cat ? '' : `<li class="combo-group" role="presentation">${esc(p.cat.label)}</li>`)
             + `<li role="option" id="outfit-option-${i}" data-part="${esc(p.name)}" aria-selected="${i === suggestIndex}" aria-description="${esc(p.cat.label)}">`
-            + `<span>${esc(p.name)}</span><span class="combo-meta">${specialNote(p) ? `<span class="part-special">${esc(specialNote(p))}</span> · ` : ''}${esc(sizeRange(p))}</span></li>`).join('')
+            + `<span>${esc(p.name)}</span><span class="combo-meta">${specialNote(p) ? `<span class="part-special">${esc(specialNote(p))}</span> · ` : ''}`
+            + `${p.beyond ? '<span class="part-unsure">not in your loadout</span> · ' : ''}${esc(sizeRange(p))}</span></li>`).join('')
         : `<li class="combo-empty">${esc(empty)}</li>`;
     list.hidden = false;
     input.setAttribute('aria-expanded', 'true');
@@ -360,11 +407,13 @@ function refreshOutfitModules() {
     const { type, ship } = outfitShip();
     const known = !ship ? '' : !ship.modules ? ' · board this ship once to read its modules'
         : ` · fitted modules from the journal${ship.loadoutAt ? ` (${timeAgo(ship.loadoutAt)})` : ''}`;
-    const slots = shipSlots(type) ? '' : ' · slot sizes unknown for this ship, all sizes shown';
+    const sizes = SHIP_SLOTS[type] ? ''
+        : shipSlots(type, ship) ? ' · slot sizes from your journal, empty slots are not in it'
+        : ' · slot sizes unknown for this ship, all sizes shown';
     const special = specialSlotsText(type);
     const ownParts = partTypes().filter(p => p.special.includes(OWN_PARTS)).map(p => p.name);
     const notes = (special ? ` · ★ Special slots: ${special}` : '') + (ownParts.length ? ` · ★ Only for this ship: ${ownParts.join(', ')}` : '');
-    $('outfit-ship-info').textContent = `Landing pad ${PAD_LABEL[shipPad(type)] || '?'}${known}${slots}${notes}`;
+    $('outfit-ship-info').textContent = `Landing pad ${PAD_LABEL[shipPad(type)] || '?'}${known}${sizes}${notes}`;
     refreshOutfitCategories();
     refreshOutfitVariants();
     loadOutfitParts();          // another ship, another list
@@ -373,24 +422,29 @@ function refreshOutfitModules() {
 function refreshOutfitVariants(wanted) {
     const name = outfitModule;
     const { type, ship } = outfitShip();
-    const ofType = MODULES.filter(m => m.name === name && (!m.armour || isArmourFor(m, type)));
-    const variants = ofType.filter(m => fitsType(m, type))
+    const slots = shipSlots(type, ship);
+    const unsure = m => !fitsShip(m, slots);
+    const ofType = MODULES.filter(m => m.name === name && couldFit(m, type));
+    const variants = ofType.filter(m => !ruledOut(m, slots))
         .sort((a, b) => a.size - b.size || RATING_ORDER.indexOf(a.rating) - RATING_ORDER.indexOf(b.rating)
             || a.mount.localeCompare(b.mount) || a.guidance.localeCompare(b.guidance));
+    const confirmed = variants.filter(m => !unsure(m));
     const fittedNow = new Set(ship && ship.modules || []);
     const fitted = ofType.filter(m => fittedNow.has(m.symbol));
     const select = $('outfit-variant');
     select.innerHTML = variants.length
-        ? variants.map(m => `<option value="${esc(m.symbol)}">${esc(variantLabel(m))}${fittedNow.has(m.symbol) ? ' ✓ fitted' : ''}</option>`).join('')
+        ? variants.map(m => `<option value="${esc(m.symbol)}">${esc(variantLabel(m))}${fittedNow.has(m.symbol) ? ' ✓ fitted' : ''}`
+            + `${unsure(m) ? ' · not in your loadout' : ''}</option>`).join('')
         : `<option value="">${name ? `Does not fit the ${esc(shipLabel(type))}` : 'Choose a part first'}</option>`;
     select.disabled = !variants.length;
     // "6a scoop" picks 6A; otherwise the best rating in the size that is fitted now (the usual upgrade),
     // or the largest size that fits the ship.
     const now = fitted[0];
-    const largest = Math.max(...variants.map(m => Number(m.size)));
+    const known = confirmed.length ? confirmed : variants;     // a size the ship is known to take comes first
+    const largest = Math.max(...known.map(m => Number(m.size)));
     const pick = (wanted && variants.find(m => `${m.size}${m.rating}`.toLowerCase().startsWith(wanted)))
         || (now && variants.find(m => m.size === now.size && m.mount === now.mount && m.guidance === now.guidance))
-        || variants.find(m => Number(m.size) === largest);
+        || known.find(m => Number(m.size) === largest);
     if (pick) select.value = pick.symbol;
     $('outfit-fitted').textContent = fitted.length ? `Fitted on ${ship.name || shipLabel(ship.type)}: ${fitted.map(partLabel).join(', ')}` : '';
 }
@@ -399,7 +453,7 @@ function refreshOutfitVariants(wanted) {
 // slot data from the parts fitted now (journal); null when neither is known.
 function corePackage() {
     const { type, ship } = outfitShip();
-    const slots = shipSlots(type);
+    const slots = shipSlots(type, ship);
     const fitted = (ship && ship.modules || []).map(symbol => MODULE_BY_SYMBOL.get(symbol)).filter(Boolean);
     const parts = CORE_PACKAGE_PARTS.map(name => {
         const slot = CORE_SLOT[name];
@@ -433,7 +487,8 @@ const shortPartLabel = m => partLabel(m).replace('Frame Shift Drive', 'FSD');
 
 // The list grouped by slot type, in the order of the game; the package counts as core internal.
 function renderOutfitParts() {
-    const { type } = outfitShip();
+    const { type, ship } = outfitShip();
+    const slots = shipSlots(type, ship);
     const chip = symbol => {
         if (symbol === CORE_PACKAGE) {
             const parts = corePackage();
@@ -443,9 +498,12 @@ function renderOutfitParts() {
         }
         const m = MODULE_BY_SYMBOL.get(symbol);
         const label = esc(partLabel(m));
-        const fits = fitsType(m, type);
-        const warning = fits ? '' : `<span class="part-warn" title="Does not fit the ${esc(shipLabel(type))}">⚠</span>`;
-        return `<span class="part-chip${fits ? '' : ' no-fit'}">${warning}${label}<button type="button" data-remove-part="${esc(symbol)}" aria-label="Remove ${label}">×</button></span>`;
+        const fits = fitsType(m, type, ship);
+        const unsure = !fits && !ruledOut(m, slots);
+        const title = unsure ? `Not among the slots your journal shows for the ${shipLabel(type)}: an empty slot may still take it`
+            : `Does not fit the ${shipLabel(type)}`;
+        const warning = fits ? '' : `<span class="part-warn" title="${esc(title)}">⚠</span>`;
+        return `<span class="part-chip${fits ? '' : (unsure ? ' unsure' : ' no-fit')}">${warning}${label}<button type="button" data-remove-part="${esc(symbol)}" aria-label="Remove ${label}">×</button></span>`;
     };
     const packageRank = PART_CATEGORIES.findIndex(c => c.key === 'Core internal/Power & drives');
     const rank = entry => (entry === CORE_PACKAGE ? packageRank : categoryRank(MODULE_BY_SYMBOL.get(entry)));

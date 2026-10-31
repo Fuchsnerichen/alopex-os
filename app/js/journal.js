@@ -227,6 +227,9 @@ function handleJournalEvent(ev, live) {
                     cargo: ev.CargoCapacity || 0,
                     pax: countSeats(ev.Modules),
                     modules: (ev.Modules || []).map(m => String(m.Item || '').toLowerCase()).filter(Boolean),
+                    // slot -> module, for ships the game data has no slot sizes for (see journalSlots)
+                    slots: Object.fromEntries((ev.Modules || []).filter(m => m.Slot && m.Item)
+                        .map(m => [String(m.Slot).toLowerCase(), String(m.Item).toLowerCase()])),
                     loadoutAt: ev.timestamp,
                     system: journalSystem
                 });
