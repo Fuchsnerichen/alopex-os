@@ -6,7 +6,7 @@ ALOPEX OS ist ein Navigator für Elite Dangerous: Handelsrouten, Passagiermissio
 Mining-Hotspots, Exobiologie und Ausrüstung mit Live-Daten. Ein eigenes Programmfenster,
 kein Browser.
 
-Neu in 1.0.17:
+Neu in 1.0.18:
   - Outfitting: Die Teile sind nach Kategorien sortiert wie im Spiel (Hardpoints,
     Utility mounts, Core und Optional internal, darin z. B. Lasers, Mining tools,
     Shields & hull). Unter CATEGORY eine Kategorie wählen und ihre Teile durchblättern,
