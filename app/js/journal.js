@@ -263,10 +263,13 @@ function handleJournalEvent(ev, live) {
             break;
         }
         case 'MissionAccepted':
-            if (ev.PassengerCount === undefined) break;
+            // Every kind of mission, so the Missions tab can stack them; what a kind does not have stays empty.
             missions.set(ev.MissionID, {
-                id: ev.MissionID, name: ev.LocalisedName || ev.Name, reward: ev.Reward || 0,
-                pax: ev.PassengerCount, vip: !!ev.PassengerVIPs, wanted: !!ev.PassengerWanted, type: ev.PassengerType || '',
+                id: ev.MissionID, name: ev.LocalisedName || ev.Name, reward: ev.Reward || 0, faction: ev.Faction || '',
+                pax: ev.PassengerCount || 0, vip: !!ev.PassengerVIPs, wanted: !!ev.PassengerWanted, type: ev.PassengerType || '',
+                commodity: ev.Commodity_Localised || ev.Commodity || '', count: ev.Count || 0,
+                target: ev.Target_Localised || ev.Target || '', targetFaction: ev.TargetFaction || '', killCount: ev.KillCount || 0,
+                wing: !!ev.Wing,
                 destSystem: ev.DestinationSystem || '', destStation: ev.DestinationStation || '',
                 originSystem: journalSystem, originStation: journalStation,
                 expiry: ev.Expiry, accepted: ev.timestamp, status: 'active'
@@ -293,9 +296,11 @@ function handleJournalEvent(ev, live) {
             const activeIds = new Set((ev.Active || []).map(a => a.MissionID));
             for (const m of missions.values()) if (m.status === 'active' && !activeIds.has(m.id)) m.status = 'gone';
             for (const a of ev.Active || []) {
-                if (a.PassengerMission && !missions.has(a.MissionID)) {
-                    const name = String(a.Name || 'Passenger mission').replace(/^Mission_|_name$/gi, '').replace(/_/g, ' ');
+                if (!missions.has(a.MissionID)) {
+                    // Accepted before the scanned files: only the name and the time left are in this event.
+                    const name = String(a.Name || 'Mission').replace(/^Mission_|_name$/gi, '').replace(/_/g, ' ');
                     missions.set(a.MissionID, { id: a.MissionID, name, partial: true, status: 'active',
+                        passenger: !!a.PassengerMission,
                         expiry: new Date(Date.parse(ev.timestamp) + (a.Expires || 0) * 1000).toISOString() });
                 }
             }

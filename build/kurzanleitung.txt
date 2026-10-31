@@ -24,6 +24,10 @@ Neu in 1.0.18:
     die App die Plätze aus deinem Journal, wenn das Schiff in deiner Flotte ist. Teile, die
     dort in keinen Platz passen, verschwinden nicht, sondern stehen mit dem Hinweis
     "not in your loadout" dabei: ein leerer Platz steht nicht im Journal.
+  - Neuer Tab "Missions": zeigt, welche deiner angenommenen Missionen dasselbe Ziel haben
+    und sich zu einer Fahrt bündeln lassen, und ob dein Schiff den ganzen Stapel nimmt.
+    Wenn nicht, steht dabei, welches Schiff deiner Flotte es täte. Was eine Station an
+    Missionen anbietet, steht in keiner öffentlichen Datenquelle - das kann keine App.
   - Neuer Tab "Services": findet die nächste Station mit Material Trader, Technology
     Broker, Interstellar Factors, Universal Cartographics, Vista Genomics, Black Market
     oder Search and Rescue. Mehrere Haken heißt: eine Station muss alle davon haben.

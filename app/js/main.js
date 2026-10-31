@@ -19,7 +19,8 @@ const ACTIONS = {
     updateAction: () => updateAction(),
     closeUpdateNotice: () => { $('update-notice').hidden = true; },
     searchOutfit: btn => searchOutfitting(btn),
-    searchServices: btn => searchServices(btn)
+    searchServices: btn => searchServices(btn),
+    searchMissions: btn => searchMissions(btn)
 };
 
 document.addEventListener('click', e => {
@@ -62,6 +63,7 @@ $('exo-target').innerHTML = EXO_SPECIES
 $('exo-target').value = 'Stratum|Tectonicas';
 $('mine-resource').innerHTML = Object.keys(MINING_RESOURCES).map(r => `<option value="${r}">${r}</option>`).join('');
 refreshOutfitShips();
+refreshMissionShips();
 readOutfitParts();
 
 window.addEventListener('DOMContentLoaded', () => {

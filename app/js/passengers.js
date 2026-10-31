@@ -3,6 +3,8 @@
 // ==========================================
 // 2. PASSENGER MISSIONS (own journal)
 // ==========================================
+// A passenger mission brings passengers; before the scanned files only the login list says so.
+const isPassengerMission = m => (m.partial ? !!m.passenger : m.pax > 0);
 const firstDestination = m => String(m.destSystem || '').split('$MISSIONUTIL_MULTIPLE_INNER_SEPARATOR;')[0];
 const destinationLabel = m => String(m.destSystem || '').split('$MISSIONUTIL_MULTIPLE_INNER_SEPARATOR;').filter(Boolean).join(' → ');
 
@@ -13,7 +15,7 @@ function searchPassengerRoutes(btn) {
         }
         const filter = $('passenger-type').value;
         const matches = m => filter === 'all' || m.partial || (filter === 'vip') === !!m.vip;
-        const all = [...missions.values()].filter(matches);
+        const all = [...missions.values()].filter(m => isPassengerMission(m) && matches(m));
         const now = Date.now();
         const active = all.filter(m => m.status === 'active' && !(Date.parse(m.expiry) <= now))
             .sort((a, b) => (Date.parse(a.expiry) || 0) - (Date.parse(b.expiry) || 0));

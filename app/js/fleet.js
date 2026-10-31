@@ -95,6 +95,7 @@ function upsertShip(id, props) {
 
 function updateShipDropdown() {
     refreshOutfitShips();
+    refreshMissionShips();
     const select = $('ship-preset');
     const previous = select.value;
     const ships = Object.values(fleet);

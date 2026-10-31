@@ -31,6 +31,7 @@ const row = o => ({ commodityName: 'gold', marketId: 1, stationName: 'X', statio
     systemAddress: 1, systemName: 'A', buyPrice: 0, demand: 0, meanPrice: 0, sellPrice: 0, stock: 0,
     updatedAt: new Date(Date.now() - 3600e3).toISOString(), ...o });
 const SYSTEMS = { sol: { systemAddress: 10477373803, systemName: 'Sol', systemX: 0, systemY: 0, systemZ: 0 },
+    lave: { systemAddress: 5306655, systemName: 'Lave', systemX: 75.7, systemY: 48.75, systemZ: 68.2 },
     'lhs 20': { systemAddress: 3307124605658, systemName: 'LHS 20', systemX: 11.19, systemY: -37.38, systemZ: -31.84 } };
 
 function ardent(p) {
@@ -99,6 +100,7 @@ function spansh(type, query) {
 }
 
 const J = o => JSON.stringify({ timestamp: '2026-10-26T10:00:00Z', ...o });
+const hoursFromNow = h => new Date(Date.now() + h * 3600e3).toISOString();   // missions must not be expired while testing
 const JOURNAL = [
     J({ event: 'Fileheader' }),
     // flown earlier: a Cobra with known loadout
@@ -119,6 +121,18 @@ const JOURNAL = [
     J({ event: 'Loadout', Ship: 'anaconda', ShipID: 7, ShipName: 'Alopex', ShipIdent: 'AL-01', MaxJumpRange: 41.237, CargoCapacity: 400,
         Modules: [{ Slot: 'FrameShiftDrive', Item: 'int_hyperdrive_size6_class3' },
             { Item: 'int_passengercabin_size6_class1' }, { Item: 'int_passengercabin_size5_class4' }] }),
+    J({ event: 'MissionAccepted', MissionID: 101, Name: 'Mission_PassengerBulk', LocalisedName: 'Sightseeing tour',
+        Faction: 'Sol Workers', PassengerCount: 20, PassengerType: 'Tourist',
+        DestinationSystem: 'Lave', DestinationStation: 'Lave Station', Reward: 4000000, Expiry: hoursFromNow(70) }),
+    J({ event: 'MissionAccepted', MissionID: 102, Name: 'Mission_PassengerVIP', LocalisedName: 'VIP transport',
+        Faction: 'Sol Workers', PassengerCount: 10, PassengerVIPs: true, PassengerWanted: true, PassengerType: 'CEO',
+        DestinationSystem: 'Lave', DestinationStation: 'Lave Station', Reward: 9000000, Expiry: hoursFromNow(30) }),
+    J({ event: 'MissionAccepted', MissionID: 103, Name: 'Mission_Delivery', LocalisedName: 'Deliver gold',
+        Faction: 'Sol Workers', Commodity: '$Gold_Name;', Commodity_Localised: 'Gold', Count: 50,
+        DestinationSystem: 'Lave', DestinationStation: 'Lave Station', Reward: 1200000, Expiry: hoursFromNow(90) }),
+    J({ event: 'MissionAccepted', MissionID: 104, Name: 'Mission_Massacre', LocalisedName: 'Thin out the pirates',
+        Faction: 'Sol Workers', KillCount: 12, Target: 'Pirates', TargetFaction: 'Leesti Gang',
+        DestinationSystem: 'Leesti', Reward: 2500000, Expiry: hoursFromNow(50) }),
     J({ event: 'Location', StarSystem: 'Sol', Docked: true, StationName: 'Abraham Lincoln' }),
     J({ event: 'Cargo', Vessel: 'Ship', Count: 64 })
 ].join('\r\n') + '\r\n';
@@ -769,6 +783,36 @@ test('services: the nearest station with the ticked services', async () => {
     await win.click('[data-action="searchServices"]');
     await win.waitForFunction(() => document.querySelector('#services-results').textContent.includes('Tick at least one'));
     await win.check('#svc-material-trader');
+});
+
+test('missions: what stacks into one trip, and which ship takes it', async () => {
+    const titles = () => win.$$eval('#missions-results .accordion-title', els => els.map(e => e.textContent));
+    await win.click('[data-tab="missions"]');
+    assert.match(await win.textContent('#mission-ship'), /\[ACTIVE\] Alopex \(Anaconda\)/);
+
+    await win.click('[data-action="searchMissions"]');
+    await win.waitForSelector('#missions-results .accordion-item, #missions-results .info-box');
+    assert.deepEqual(await titles(), ['Lave', 'Leesti'], 'the fullest stack first');
+    assert.match(await win.textContent('#missions-results h4'), /4 active missions · 2 destinations · 1 that stack/i);
+
+    const text = await win.$eval('#missions-results', e => e.innerText);
+    assert.match(text, /Needs:\s*30 passengers · 50 t cargo/i, 'the three Lave missions added up');
+    assert.match(text, /Station: Lave Station/i);
+    assert.match(text, /✓ The Alopex \(Anaconda\) takes the whole stack/i);
+    assert.match(text, /Needs:\s*12 kills/i, 'kills need no room');
+    assert.match(text, /VIP transport — 10 passengers \(CEO\) · VIP · wanted/i);
+    assert.match(text, /Deliver gold — 50 t Gold/i);
+    assert.match(text, /Thin out the pirates — 12 × Pirates \(Leesti Gang\)/i);
+    assert.match(text, /LY/, 'distance to Lave from the Ardent lookup');
+
+    // a ship that is too small, and the one from the fleet that would do it
+    await win.selectOption('#mission-ship', '9');
+    await win.click('[data-action="searchMissions"]');
+    await win.waitForFunction(() => document.querySelector('#missions-results').textContent.includes('is short'));
+    const small = await win.$eval('#missions-results', e => e.innerText);
+    assert.match(small, /✗ The Digger \(Cobra Mk III\) is short: 30 passengers, 0 seats, 50 t, a 36 t hold/i);
+    assert.match(small, /Takes it all: Alopex \(Anaconda\)/i);
+    await win.selectOption('#mission-ship', '7');
 });
 
 test('copy buttons write to the clipboard', async () => {

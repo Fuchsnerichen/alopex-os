@@ -56,6 +56,12 @@ mit einem kostenpflichtigen Zertifikat signiert ist. *Weitere Informationen* →
   steckt, also sind die Kern-Plätze vollständig (ohne die fliegt kein Schiff), der Rest ist eine Untergrenze.
   Deshalb wird dort nichts ausgeblendet: Teile jenseits der bekannten Plätze stehen weiter zur Auswahl und sind
   als *not in your loadout* markiert.
+- **Missions:** Zeigt, welche angenommenen Missionen dasselbe Ziel haben und sich zu einer Fahrt bündeln
+  lassen, mit Gesamtbelohnung, Ablauf und dem, was der Stapel verlangt (Sitzplätze, Tonnen, Kills). Dazu die
+  Prüfung, ob das gewählte Schiff den ganzen Stapel nimmt — und wenn nicht, welches Schiff deiner Flotte es
+  täte. **Missionsangebote einer Station sind in keiner öffentlichen Datenquelle enthalten** (siehe unten),
+  die Auswertung läuft daher über die Missionen, die du bereits angenommen hast. Welche Kabinenklasse eine
+  Passagiermission verlangt, steht nicht im Journal; gezählt werden deshalb nur Sitzplätze.
 - **Services:** Die nächste Station mit bestimmten Diensten finden: Material Trader, Technology Broker,
   Interstellar Factors, Universal Cartographics, Vista Genomics, Black Market und Search and Rescue. Mehrere
   Haken bedeuten, dass eine Station alle davon haben muss. Die App prüft die Dienstliste jeder Station noch
@@ -147,7 +153,7 @@ Prüfsummen und Kurzanleitung.
 | `preload.cjs` | Die Brücke: genau die Funktionen, die die Oberfläche nutzen darf |
 | `lib/` | Ardent, Spansh, Warennamen, Journal, Updates und der gemeinsame Netzwerk-Helfer |
 | `app/` | Die Oberfläche (HTML, CSS, JavaScript, Schrift Rajdhani unter SIL OFL 1.1) |
-| `app/js/` | Die Skripte der Oberfläche, eine Datei pro Bereich: `constants`, `utils`, `api`, `audio`, `fleet`, `prefs`, `ui`, `journal`, `trade`, `passengers`, `mining`, `exobio`, `outfitting`, `services`, `intro`, `updates` und `main` (Ereignisse und Start). Sie teilen sich einen Namensraum und laden in dieser Reihenfolge (`index.html`) |
+| `app/js/` | Die Skripte der Oberfläche, eine Datei pro Bereich: `constants`, `utils`, `api`, `audio`, `fleet`, `prefs`, `ui`, `journal`, `trade`, `passengers`, `missions`, `mining`, `exobio`, `outfitting`, `services`, `intro`, `updates` und `main` (Ereignisse und Start). Sie teilen sich einen Namensraum und laden in dieser Reihenfolge (`index.html`) |
 | `app/outfitting-data.js` | Modulliste für Outfitting, erzeugt aus EDCD FDevIDs `outfitting.csv` |
 | `app/ship-slots.js` | Steckplatz-Größen jedes Schiffs, Spezial-Steckplätze und Teile nur für ein Schiff, erzeugt aus EDCD coriolis-data |
 | `scripts/build-ship-slots.mjs` | Erzeugt `app/ship-slots.js` neu: `node scripts/build-ship-slots.mjs <Pfad>/coriolis-data <Pfad>/FDevIDs` |

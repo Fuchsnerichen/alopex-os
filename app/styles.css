@@ -231,6 +231,8 @@ input:focus, select:focus { border-color: var(--ed-border-focus); box-shadow: 0 
 /* the journal shows no slot for it, but it lists no empty slots either */
 .part-chip.unsure { border-style: dashed; border-color: var(--ed-text-muted); color: var(--ed-text-muted); background: transparent; }
 .part-unsure { font-style: italic; }
+.fit-yes { color: var(--ed-green); margin: 8px 0; }
+.fit-no { color: var(--ed-red); margin: 8px 0 4px; }
 .part-warn { margin-right: 2px; }
 .combo { position: relative; }
 .combo input { width: 100%; }
