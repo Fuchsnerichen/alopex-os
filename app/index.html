@@ -126,6 +126,7 @@
         <button class="tab-btn" role="tab" aria-selected="false" data-tab="mining" data-sound>Mining</button>
         <button class="tab-btn" role="tab" aria-selected="false" data-tab="exobio" data-sound>Exobiology</button>
         <button class="tab-btn" role="tab" aria-selected="false" data-tab="outfit" data-sound>Outfitting</button>
+        <button class="tab-btn" role="tab" aria-selected="false" data-tab="services" data-sound>Services</button>
     </div>
 
     <!-- Trade Tab -->
@@ -297,6 +298,35 @@
         <div id="outfit-results" class="results-container" aria-live="polite"></div>
     </div>
 
+    <div id="services" class="tab-content" role="tabpanel">
+        <h3>Services: the nearest station that has them</h3>
+        <div class="form-grid">
+            <div class="input-group">
+                <label id="svc-label">SERVICES (A STATION HAS TO HAVE EVERY TICKED ONE)</label>
+                <div class="service-list" role="group" aria-labelledby="svc-label">
+                    <label class="checkbox-row"><input type="checkbox" id="svc-material-trader" checked> Material Trader</label>
+                    <label class="checkbox-row"><input type="checkbox" id="svc-tech-broker"> Technology Broker</label>
+                    <label class="checkbox-row"><input type="checkbox" id="svc-interstellar-factors"> Interstellar Factors</label>
+                    <label class="checkbox-row"><input type="checkbox" id="svc-cartographics"> Universal Cartographics</label>
+                    <label class="checkbox-row"><input type="checkbox" id="svc-vista-genomics"> Vista Genomics</label>
+                    <label class="checkbox-row"><input type="checkbox" id="svc-black-market"> Black Market</label>
+                    <label class="checkbox-row"><input type="checkbox" id="svc-search-rescue"> Search and Rescue</label>
+                </div>
+            </div>
+            <div class="input-group">
+                <label for="svc-radius">MAX DISTANCE (LY, MAX 500)</label>
+                <input type="number" id="svc-radius" value="50" min="1" max="500">
+            </div>
+        </div>
+        <button data-action="searchServices" data-sound>Find the nearest station with these services</button>
+        <p class="source-note">Station services from the Spansh station search (collected via EDDN). The app checks the service list of every station again, so a result has all the ticked services. Landing pad from PAD SIZE above; Fleet Carriers and planetary stations follow the STATIONS switches. Which kind of Material Trader (raw, manufactured, encoded) a station has is not in the data.</p>
+        <div id="services-loading" class="loading-container">
+            <div class="loading-text">SCANNING STATION SERVICES...</div>
+            <div class="scanner-bar"></div>
+        </div>
+        <div id="services-results" class="results-container" aria-live="polite"></div>
+    </div>
+
     <!-- Version and author are filled in by the app core when it serves this page (main.mjs). -->
     <footer class="app-footer">ALOPEX OS v%APP_VERSION% · by %APP_AUTHOR%</footer>
 
@@ -337,6 +367,7 @@
     <script src="js/mining.js"></script>
     <script src="js/exobio.js"></script>
     <script src="js/outfitting.js"></script>
+    <script src="js/services.js"></script>
     <script src="js/intro.js"></script>
     <script src="js/updates.js"></script>
     <script src="js/main.js"></script>

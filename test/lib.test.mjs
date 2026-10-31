@@ -81,7 +81,8 @@ test('Spansh: fixed endpoints, clamped pages, cache and rate limit', async () =>
 test('Spansh: station results keep only the fields the app shows', async () => {
     const station = {
         name: 'Jameson Memorial', type: 'Orbis Starport', system_name: 'Shinrarta Dezhra', distance: 0, large_pads: 8, is_planetary: false,
-        market: [{ commodity: 'Gold', buy_price: 1 }], ships: [{ name: 'Anaconda', price: 146969451, ship_id: 128049363 }], services: [{ name: 'Outfitting' }],
+        market: [{ commodity: 'Gold', buy_price: 1 }], ships: [{ name: 'Anaconda', price: 146969451, ship_id: 128049363 }],
+        services: [{ name: 'Outfitting' }, 'Material Trader'],
         modules: [{ ed_symbol: 'Int_Hyperdrive_Size5_Class5', name: 'Frame Shift Drive', class: 5, rating: 'A', price: 5103953, category: 'standard', ed_id: 128064112 }]
     };
     const { fetch } = fakeFetch(() => ({ body: { count: 1, size: 1, results: [station] } }));
@@ -92,7 +93,8 @@ test('Spansh: station results keep only the fields the app shows', async () => {
     assert.deepEqual(data.results[0], {
         name: 'Jameson Memorial', type: 'Orbis Starport', system_name: 'Shinrarta Dezhra', distance: 0, large_pads: 8, is_planetary: false,
         modules: [{ ed_symbol: 'Int_Hyperdrive_Size5_Class5', name: 'Frame Shift Drive', class: 5, rating: 'A', price: 5103953 }],
-        ships: [{ name: 'Anaconda', price: 146969451 }]
+        ships: [{ name: 'Anaconda', price: 146969451 }],
+        services: ['Outfitting', 'Material Trader']
     });
     const bodies = await search('bodies', { filters: {} });
     assert.deepEqual(bodies.data.results[0].market, station.market, 'other searches stay untouched');

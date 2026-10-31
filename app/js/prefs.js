@@ -3,7 +3,9 @@
 // ==========================================
 // PREFS & THEME
 // ==========================================
-const inputsToSave = ['theme-selector', 'current-system', 'jump-range', 'pad-size', 'include-carriers', 'include-planetary', 'cargo-space', 'max-trade-dist', 'price-age', 'passenger-space', 'passenger-type', 'mine-resource', 'mine-radius', 'reserve-pristine', 'reserve-major', 'reserve-common', 'reserve-low', 'reserve-depleted', 'current-cargo', 'sell-radius', 'exo-target', 'exo-radius', 'outfit-radius', 'outfit-buy-ship', 'intro-enabled'];
+const inputsToSave = ['theme-selector', 'current-system', 'jump-range', 'pad-size', 'include-carriers', 'include-planetary', 'cargo-space', 'max-trade-dist', 'price-age', 'passenger-space', 'passenger-type', 'mine-resource', 'mine-radius', 'reserve-pristine', 'reserve-major', 'reserve-common', 'reserve-low', 'reserve-depleted', 'current-cargo', 'sell-radius', 'exo-target', 'exo-radius', 'outfit-radius', 'outfit-buy-ship',
+    'svc-material-trader', 'svc-tech-broker', 'svc-interstellar-factors', 'svc-cartographics', 'svc-vista-genomics',
+    'svc-black-market', 'svc-search-rescue', 'svc-radius', 'intro-enabled'];
 
 function savePrefs() {
     try {

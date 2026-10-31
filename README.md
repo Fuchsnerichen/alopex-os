@@ -3,7 +3,7 @@
 Von **CMDR Fuxy**.
 
 ALOPEX OS als eigenständiges Windows-Programm: eigenes Fenster, kein Browser, kein Node.js,
-kein Startskript. Live-Daten von Ardent (Märkte) und Spansh (Ring-Hotspots, Exobiologie, Ausrüstung) und
+kein Startskript. Live-Daten von Ardent (Märkte) und Spansh (Ring-Hotspots, Exobiologie, Ausrüstung, Stationsdienste) und
 das Elite-Journal laufen direkt in der App.
 
 ## Installieren
@@ -55,7 +55,12 @@ mit einem kostenpflichtigen Zertifikat signiert ist. *Weitere Informationen* →
   Plätze aus dem Journal, sofern das Schiff in deiner Flotte ist. Ein Loadout nennt nur Plätze, in denen etwas
   steckt, also sind die Kern-Plätze vollständig (ohne die fliegt kein Schiff), der Rest ist eine Untergrenze.
   Deshalb wird dort nichts ausgeblendet: Teile jenseits der bekannten Plätze stehen weiter zur Auswahl und sind
-  als *not in your loadout* markiert. *A-rated core package* setzt Thrusters, Power Plant, Frame Shift Drive (SCO)
+  als *not in your loadout* markiert.
+- **Services:** Die nächste Station mit bestimmten Diensten finden: Material Trader, Technology Broker,
+  Interstellar Factors, Universal Cartographics, Vista Genomics, Black Market und Search and Rescue. Mehrere
+  Haken bedeuten, dass eine Station alle davon haben muss. Die App prüft die Dienstliste jeder Station noch
+  einmal selbst; welche Art von Material Trader (raw, manufactured, encoded) eine Station hat, steht nicht in
+  den Daten. Landefeld, Fleet Carrier und Planetenstationen folgen den Einstellungen oben. *A-rated core package* setzt Thrusters, Power Plant, Frame Shift Drive (SCO)
   und Power Distributor in A auf die Liste, jeweils in der Größe, die das gewählte Schiff nimmt; wechselst du das
   Schiff, passt sich das Paket an. Die App zeigt die nächsten Stationen, die *alle* Teile verkaufen, mit Preisen. Bei Schiffen
   aus der Flotte steht dabei, was gerade eingebaut ist.
@@ -142,7 +147,7 @@ Prüfsummen und Kurzanleitung.
 | `preload.cjs` | Die Brücke: genau die Funktionen, die die Oberfläche nutzen darf |
 | `lib/` | Ardent, Spansh, Warennamen, Journal, Updates und der gemeinsame Netzwerk-Helfer |
 | `app/` | Die Oberfläche (HTML, CSS, JavaScript, Schrift Rajdhani unter SIL OFL 1.1) |
-| `app/js/` | Die Skripte der Oberfläche, eine Datei pro Bereich: `constants`, `utils`, `api`, `audio`, `fleet`, `prefs`, `ui`, `journal`, `trade`, `passengers`, `mining`, `exobio`, `outfitting`, `intro`, `updates` und `main` (Ereignisse und Start). Sie teilen sich einen Namensraum und laden in dieser Reihenfolge (`index.html`) |
+| `app/js/` | Die Skripte der Oberfläche, eine Datei pro Bereich: `constants`, `utils`, `api`, `audio`, `fleet`, `prefs`, `ui`, `journal`, `trade`, `passengers`, `mining`, `exobio`, `outfitting`, `services`, `intro`, `updates` und `main` (Ereignisse und Start). Sie teilen sich einen Namensraum und laden in dieser Reihenfolge (`index.html`) |
 | `app/outfitting-data.js` | Modulliste für Outfitting, erzeugt aus EDCD FDevIDs `outfitting.csv` |
 | `app/ship-slots.js` | Steckplatz-Größen jedes Schiffs, Spezial-Steckplätze und Teile nur für ein Schiff, erzeugt aus EDCD coriolis-data |
 | `scripts/build-ship-slots.mjs` | Erzeugt `app/ship-slots.js` neu: `node scripts/build-ship-slots.mjs <Pfad>/coriolis-data <Pfad>/FDevIDs` |

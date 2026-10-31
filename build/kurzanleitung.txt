@@ -24,6 +24,9 @@ Neu in 1.0.18:
     die App die Plätze aus deinem Journal, wenn das Schiff in deiner Flotte ist. Teile, die
     dort in keinen Platz passen, verschwinden nicht, sondern stehen mit dem Hinweis
     "not in your loadout" dabei: ein leerer Platz steht nicht im Journal.
+  - Neuer Tab "Services": findet die nächste Station mit Material Trader, Technology
+    Broker, Interstellar Factors, Universal Cartographics, Vista Genomics, Black Market
+    oder Search and Rescue. Mehrere Haken heißt: eine Station muss alle davon haben.
   - Updates: Klappt die Update-Prüfung nicht, steht unter UPDATES jetzt, woran es liegt
     (offline, GitHub ausgelastet, Datei fehlt im Release ...), statt "Up to date".
 
@@ -90,6 +93,6 @@ So siehst du, dass die Datei unverändert von mir kommt.
 4. WAS DIE APP INS INTERNET SCHICKT
 -----------------------------------
   Nur Suchanfragen für Live-Daten an Ardent Insight (Marktpreise), Spansh (Hotspots,
-  Exobiologie, Ausrüstung, Schiffe), GitHub (Liste der Warennamen) und die Update-
+  Exobiologie, Ausrüstung, Schiffe, Stationsdienste), GitHub (Liste der Warennamen) und die Update-
   Prüfung bei GitHub (beim Start und alle 6 Stunden). Diese Dienste sehen dabei deine
   IP-Adresse. Keine Journal-Inhalte, keine persönlichen Daten.

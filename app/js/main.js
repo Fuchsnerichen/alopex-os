@@ -18,7 +18,8 @@ const ACTIONS = {
     addCorePackage: () => addCorePackage(),
     updateAction: () => updateAction(),
     closeUpdateNotice: () => { $('update-notice').hidden = true; },
-    searchOutfit: btn => searchOutfitting(btn)
+    searchOutfit: btn => searchOutfitting(btn),
+    searchServices: btn => searchServices(btn)
 };
 
 document.addEventListener('click', e => {

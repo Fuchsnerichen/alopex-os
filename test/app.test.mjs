@@ -63,14 +63,22 @@ const station = o => ({ type: 'Coriolis Starport', system_name: 'Near', distance
 function stations(query) {
     stationQueries.push(query);
     const all = [
-        station({ name: 'Small Outpost', type: 'Outpost', large_pads: 0, distance: 3, modules: [FSD_6A, SCOOP_6A, MGC_ANACONDA], ships: [] }),
-        station({ name: 'Near Dock', distance: 5, modules: [FSD_6A, MGC_SIDEWINDER], ships: [ANACONDA, COBRA] }),
+        station({ name: 'Small Outpost', type: 'Outpost', large_pads: 0, distance: 3, modules: [FSD_6A, SCOOP_6A, MGC_ANACONDA], ships: [],
+            services: ['Market', 'Refuel', 'Black Market'] }),
+        station({ name: 'Near Dock', distance: 5, modules: [FSD_6A, MGC_SIDEWINDER], ships: [ANACONDA, COBRA],
+            services: ['Market', 'Refuel', 'Material Trader', 'Shipyard'] }),
         station({ name: 'Crater Works', type: 'Planetary Port', is_planetary: true, body_name: 'Near 1', distance: 7,
-            modules: [FSD_6A, SCOOP_6A, MGC_ANACONDA], ships: [ANACONDA], shipyard_updated_at: new Date(Date.now() - 3 * 86400e3).toISOString() }),
-        station({ name: 'Far Station', system_name: 'Further', distance: 9, modules: [FSD_6A, SCOOP_6A, MGC_SIDEWINDER], ships: [COBRA] }),
+            modules: [FSD_6A, SCOOP_6A, MGC_ANACONDA], ships: [ANACONDA], shipyard_updated_at: new Date(Date.now() - 3 * 86400e3).toISOString(),
+            services: ['Market', 'Outfitting', 'Material Trader', 'Technology Broker', 'Universal Cartographics'] }),
+        station({ name: 'Far Station', system_name: 'Further', distance: 9, modules: [FSD_6A, SCOOP_6A, MGC_SIDEWINDER], ships: [COBRA],
+            services: ['Market', 'Technology Broker'] }),
         station({ name: 'Core Yard', system_name: 'Further', distance: 11, ships: [], modules: [
             mod('Int_Engine_Size7_Class5', 'Thrusters', 7, 'A', 51289890), mod('Int_Powerplant_Size8_Class5', 'Power Plant', 8, 'A', 162586486),
-            mod('Int_Hyperdrive_Overcharge_Size6_Class5', 'Frame Shift Drive (SCO)', 6, 'A', 16179531), mod('Int_PowerDistributor_Size8_Class5', 'Power Distributor', 8, 'A', 25828146)] })
+            mod('Int_Hyperdrive_Overcharge_Size6_Class5', 'Frame Shift Drive (SCO)', 6, 'A', 16179531), mod('Int_PowerDistributor_Size8_Class5', 'Power Distributor', 8, 'A', 25828146)],
+            services: ['Market', 'Outfitting'] }),
+        // Spansh has no service list for this one
+        station({ name: 'Mystery Dock', type: 'Planetary Outpost', is_planetary: true, body_name: 'Further 2 a', system_name: 'Further',
+            distance: 13, modules: [], ships: [] })
     ];
     return { count: all.length, size: query.size, page: query.page, results: query.page === 0 ? all : [] };
 }
@@ -717,6 +725,50 @@ test('outfitting: slot sizes from the journal for a ship the game data does not 
         /Core package A: 7A Thrusters · 7A Power Plant · 6A FSD \(SCO\) · 7A Power Distributor/);
     while (await win.$('#outfit-parts [data-remove-part]')) await win.click('#outfit-parts [data-remove-part]');
     await win.selectOption('#outfit-ship', 'fleet:7');
+});
+
+test('services: the nearest station with the ticked services', async () => {
+    const titles = () => win.$$eval('#services-results .accordion-title', els => els.map(e => e.textContent));
+    await win.click('[data-tab="services"]');
+    assert.equal(await win.isChecked('#svc-material-trader'), true, 'one is ticked to start with');
+
+    await win.click('[data-action="searchServices"]');
+    await win.waitForSelector('#services-results .accordion-item, #services-results .info-box');
+    let query = stationQueries.at(-1);
+    assert.deepEqual(query.filters.services, { value: ['Material Trader'] });
+    assert.deepEqual(query.filters.distance, { min: 0, max: 50 });
+    assert.deepEqual(query.filters.has_large_pad, { value: true }, 'the pad size above applies');
+    assert.deepEqual(query.sort, [{ distance: { direction: 'asc' } }]);
+    assert.equal(query.reference_system, await win.inputValue('#current-system'));
+    // Small Outpost has no large pad; Far Station has no trader; Mystery Dock has no service list, so it stays
+    assert.deepEqual(await titles(), ['Near Dock', 'Crater Works', 'Mystery Dock']);
+    const text = await win.$eval('#services-results', e => e.innerText);
+    assert.match(text, /✓ Material Trader/i);
+    assert.match(text, /Also here: Market, Refuel, Shipyard/i, 'what else the station offers');
+    assert.match(text, /Spansh lists no services for this station/i);
+
+    // every ticked service has to be there
+    await win.check('#svc-tech-broker');
+    await win.click('[data-action="searchServices"]');
+    await win.waitForFunction(() => !document.querySelector('#services-results').textContent.includes('Near Dock'));
+    assert.deepEqual(stationQueries.at(-1).filters.services, { value: ['Material Trader', 'Technology Broker'] });
+    assert.deepEqual(await titles(), ['Crater Works', 'Mystery Dock']);
+
+    // the planetary switch applies here as well, and then nothing is left
+    await win.uncheck('#include-planetary');
+    await win.click('[data-action="searchServices"]');
+    await win.waitForSelector('#services-results .info-box');
+    query = stationQueries.at(-1);
+    assert.ok(!query.filters.type.value.includes('Planetary Port'));
+    assert.match(await win.textContent('#services-results'),
+        /No station within 50 LY of Sol \(pad L\) has Material Trader and Technology Broker/i);
+    await win.check('#include-planetary');
+    await win.uncheck('#svc-tech-broker');
+
+    await win.uncheck('#svc-material-trader');
+    await win.click('[data-action="searchServices"]');
+    await win.waitForFunction(() => document.querySelector('#services-results').textContent.includes('Tick at least one'));
+    await win.check('#svc-material-trader');
 });
 
 test('copy buttons write to the clipboard', async () => {

@@ -404,6 +404,6 @@ input:focus, select:focus { border-color: var(--ed-border-focus); box-shadow: 0 
 .update-notice-notes { white-space: pre-wrap; margin-top: 6px; max-height: 220px; overflow-y: auto; text-transform: none; letter-spacing: 0.3px; }
 
 /* Mining: reserve level choice in one compact block */
-.reserve-levels { display: flex; flex-wrap: wrap; gap: 0 16px; }
-.input-group .reserve-levels label.checkbox-row { min-height: 28px; font-size: 0.85rem; gap: 6px; }
-.reserve-levels .checkbox-row input { width: 16px; height: 16px; }
+.reserve-levels, .service-list { display: flex; flex-wrap: wrap; gap: 0 16px; }
+.input-group .reserve-levels label.checkbox-row, .input-group .service-list label.checkbox-row { min-height: 28px; font-size: 0.85rem; gap: 6px; }
+.reserve-levels .checkbox-row input, .service-list .checkbox-row input { width: 16px; height: 16px; }
